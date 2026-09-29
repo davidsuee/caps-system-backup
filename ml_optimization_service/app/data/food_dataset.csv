@@ -1,0 +1,53 @@
+food_id,name,category,calories,protein,carbs,fat,cost,serving_unit,allergens
+F001,Rolled Oats with Water,Breakfast,150,5.0,27.0,2.5,15.0,1 cup,Gluten
+F002,Whole Boiled Egg,Breakfast,78,6.3,0.6,5.3,10.0,1 large egg,Eggs
+F003,Greek Yogurt (Plain),Breakfast,100,10.0,3.6,0.4,35.0,150g,Dairy
+F004,Banana,Breakfast,105,1.3,27.0,0.3,12.0,1 medium,None
+F005,Whole Wheat Bread,Breakfast,80,4.0,14.0,1.0,8.0,1 slice,Gluten
+F006,Peanut Butter,Breakfast,95,3.5,3.0,8.0,12.0,1 tbsp,Nuts
+F007,Chia Seeds,Breakfast,60,2.0,5.0,3.0,18.0,1 tbsp,None
+F008,Pandesal (2 pcs),Breakfast,230,6.0,42.0,4.0,10.0,2 pieces,Gluten
+F009,Arroz Caldo (Chicken Rice Porridge),Breakfast,220,12.0,30.0,5.0,25.0,1 bowl,None
+F010,Champorado (Chocolate Rice Porridge),Breakfast,250,4.0,48.0,4.5,20.0,1 bowl,None
+F011,Grilled Chicken Breast,Lunch,165,31.0,0.0,3.6,50.0,150g,None
+F012,Cooked White Rice,Lunch,130,2.7,28.0,0.3,10.0,1 cup,None
+F013,Cooked Brown Rice,Lunch,111,2.6,23.0,0.9,15.0,1 cup,None
+F014,Steamed Broccoli & Carrots,Lunch,55,3.7,11.0,0.6,20.0,1 cup,None
+F015,Tuna Flakes in Brine,Lunch,120,26.0,0.0,1.0,38.0,1 can,Seafood
+F016,Boiled Sweet Potato (Kamote),Lunch,90,2.0,21.0,0.15,15.0,100g,None
+F017,Chicken Tinola,Lunch,180,18.0,8.0,8.0,40.0,1 bowl,None
+F018,Sinigang na Baboy (Pork Sinigang),Lunch,210,15.0,12.0,11.0,55.0,1 bowl,None
+F019,Pinakbet (Mixed Vegetable Stew),Lunch,120,5.0,14.0,5.0,30.0,1 cup,None
+F020,Monggo Guisado (Mung Bean Stew),Lunch,180,12.0,24.0,4.0,25.0,1 cup,None
+F021,Chicken Adobo (Skinless),Lunch,195,22.0,4.0,10.0,45.0,150g,None
+F022,Lean Ground Beef (90/10),Dinner,175,22.0,0.0,9.0,65.0,120g,None
+F023,Baked Salmon Fillet,Dinner,206,22.0,0.0,12.0,95.0,120g,Seafood
+F024,Pan-fried Firm Tofu,Dinner,144,17.0,3.0,8.0,25.0,150g,None
+F025,Stir-fried Green Beans,Dinner,45,2.0,9.0,0.5,18.0,1 cup,None
+F026,Quinoa Cooked,Dinner,120,4.4,21.3,1.9,30.0,1 cup,None
+F027,Olive Oil Dressing,Dinner,119,0.0,0.0,13.5,15.0,1 tbsp,None
+F028,Grilled Bangus (Milkfish),Dinner,178,25.0,0.0,8.0,55.0,120g,Seafood
+F029,Grilled Tilapia,Dinner,128,26.0,0.0,2.7,40.0,120g,Seafood
+F030,Tokwa't Baboy (Tofu & Pork),Dinner,195,16.0,6.0,12.0,35.0,1 serving,None
+F031,Lumpiang Gulay (Vegetable Spring Roll),Dinner,110,3.0,16.0,4.0,15.0,2 pieces,Gluten
+F032,Ginisang Kalabasa (Sauteed Squash),Dinner,85,3.0,14.0,2.5,20.0,1 cup,None
+F033,Adobong Manok sa Gata (Chicken Coconut Adobo),Dinner,230,20.0,5.0,14.0,50.0,150g,None
+F034,Bistek Tagalog (Filipino Beef Steak),Dinner,200,24.0,5.0,9.0,70.0,120g,None
+F035,Laing (Taro Leaves in Coconut Milk),Dinner,160,5.0,10.0,11.0,25.0,1 cup,None
+F036,Whey Protein Isolate Shake,Snack,120,24.0,2.0,1.5,45.0,1 scoop,Dairy
+F037,Roasted Almonds,Snack,160,6.0,6.0,14.0,25.0,30g,Nuts
+F038,Medium Apple,Snack,95,0.5,25.0,0.3,15.0,1 medium,None
+F039,Cottage Cheese,Snack,110,14.0,4.0,2.5,30.0,100g,Dairy
+F040,Hard Boiled Egg Whites,Snack,34,7.2,0.5,0.1,10.0,2 whites,Eggs
+F041,Mango Slices,Snack,100,1.0,25.0,0.6,20.0,1 cup,None
+F042,Boiled Saba Banana,Snack,125,1.5,32.0,0.4,8.0,1 piece,None
+F043,Bibingka (Rice Cake),Snack,180,3.0,28.0,6.0,15.0,1 piece,Eggs
+F044,Turon (Banana Spring Roll),Snack,200,1.5,30.0,8.0,12.0,1 piece,Gluten
+F045,Taho (Silken Tofu Snack),Snack,130,7.0,20.0,3.0,15.0,1 cup,None
+F046,Puto (Steamed Rice Cake),Snack,110,2.0,22.0,1.5,10.0,2 pieces,None
+F047,Ensaymada,Snack,280,5.0,35.0,13.0,18.0,1 piece,Gluten/Dairy
+F048,Lugaw (Plain Rice Porridge),Snack,100,2.0,20.0,1.0,8.0,1 bowl,None
+F049,Mixed Nuts Trail Mix,Snack,175,5.0,9.0,14.0,30.0,30g,Nuts
+F050,Low-fat Milk,Snack,100,8.0,12.0,2.5,18.0,1 glass,Dairy
+F051,Calamansi Juice (Unsweetened),Snack,15,0.2,4.0,0.1,5.0,1 glass,None
+F052,Protein Bar,Snack,200,20.0,22.0,7.0,55.0,1 bar,Dairy/Nuts

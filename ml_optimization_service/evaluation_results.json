@@ -1,0 +1,241 @@
+{
+  "model_name": "RandomForestClassifier",
+  "model_version": "v1.0",
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "random_state": 42
+  },
+  "dataset": {
+    "total_samples": 1500,
+    "training_samples": 1200,
+    "test_samples": 300,
+    "split_ratio": "80/20 stratified",
+    "noise_rate": "8%",
+    "num_classes": 7,
+    "class_names": [
+      "Cardio-HIIT-Endurance",
+      "Full-Body Conditioning",
+      "Full-Body Foundation",
+      "Push-Pull-Legs",
+      "Push-Pull-Legs Advanced",
+      "Upper-Lower Balanced",
+      "Upper-Lower Hypertrophy"
+    ],
+    "features": [
+      "age",
+      "bmi",
+      "gender",
+      "fitness_goal",
+      "activity_level",
+      "experience_level"
+    ],
+    "target": "workout_split"
+  },
+  "single_split_metrics": {
+    "accuracy": 0.9233,
+    "precision_macro": 0.9184,
+    "recall_macro": 0.906,
+    "f1_score_macro": 0.9113,
+    "precision_weighted": 0.9242,
+    "recall_weighted": 0.9233,
+    "f1_score_weighted": 0.923
+  },
+  "cross_validation": {
+    "method": "StratifiedKFold",
+    "n_splits": 5,
+    "fold_scores": [
+      0.9233,
+      0.9233,
+      0.9167,
+      0.9467,
+      0.9233
+    ],
+    "mean_accuracy": 0.9267,
+    "std_accuracy": 0.0103
+  },
+  "per_class_report": {
+    "Cardio-HIIT-Endurance": {
+      "precision": 0.9591836734693877,
+      "recall": 0.9215686274509803,
+      "f1-score": 0.94,
+      "support": 51.0
+    },
+    "Full-Body Conditioning": {
+      "precision": 0.8979591836734694,
+      "recall": 0.9777777777777777,
+      "f1-score": 0.9361702127659575,
+      "support": 45.0
+    },
+    "Full-Body Foundation": {
+      "precision": 0.9423076923076923,
+      "recall": 0.9245283018867925,
+      "f1-score": 0.9333333333333333,
+      "support": 53.0
+    },
+    "Push-Pull-Legs": {
+      "precision": 0.9333333333333333,
+      "recall": 0.9722222222222222,
+      "f1-score": 0.9523809523809523,
+      "support": 72.0
+    },
+    "Push-Pull-Legs Advanced": {
+      "precision": 0.92,
+      "recall": 0.8846153846153846,
+      "f1-score": 0.9019607843137255,
+      "support": 26.0
+    },
+    "Upper-Lower Balanced": {
+      "precision": 0.8214285714285714,
+      "recall": 0.8214285714285714,
+      "f1-score": 0.8214285714285714,
+      "support": 28.0
+    },
+    "Upper-Lower Hypertrophy": {
+      "precision": 0.9545454545454546,
+      "recall": 0.84,
+      "f1-score": 0.8936170212765957,
+      "support": 25.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      47,
+      0,
+      0,
+      1,
+      0,
+      3,
+      0
+    ],
+    [
+      0,
+      44,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    [
+      0,
+      1,
+      49,
+      1,
+      1,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      1,
+      70,
+      0,
+      1,
+      0
+    ],
+    [
+      1,
+      0,
+      1,
+      1,
+      23,
+      0,
+      0
+    ],
+    [
+      1,
+      4,
+      0,
+      0,
+      0,
+      23,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      2,
+      1,
+      0,
+      21
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "Cardio-HIIT-Endurance",
+    "Full-Body Conditioning",
+    "Full-Body Foundation",
+    "Push-Pull-Legs",
+    "Push-Pull-Legs Advanced",
+    "Upper-Lower Balanced",
+    "Upper-Lower Hypertrophy"
+  ],
+  "feature_importance": [
+    {
+      "feature": "experience_level_Beginner",
+      "importance": 0.1575
+    },
+    {
+      "feature": "fitness_goal_Improve Endurance",
+      "importance": 0.1185
+    },
+    {
+      "feature": "experience_level_Advanced",
+      "importance": 0.1074
+    },
+    {
+      "feature": "experience_level_Intermediate",
+      "importance": 0.1044
+    },
+    {
+      "feature": "fitness_goal_Muscle Gain",
+      "importance": 0.0912
+    },
+    {
+      "feature": "bmi",
+      "importance": 0.0909
+    },
+    {
+      "feature": "fitness_goal_Weight Loss",
+      "importance": 0.0858
+    },
+    {
+      "feature": "fitness_goal_General Fitness",
+      "importance": 0.0749
+    },
+    {
+      "feature": "activity_level_Sedentary",
+      "importance": 0.0607
+    },
+    {
+      "feature": "age",
+      "importance": 0.0585
+    },
+    {
+      "feature": "activity_level_Lightly Active",
+      "importance": 0.0118
+    },
+    {
+      "feature": "activity_level_Moderately Active",
+      "importance": 0.0117
+    },
+    {
+      "feature": "activity_level_Very Active",
+      "importance": 0.0112
+    },
+    {
+      "feature": "gender_Female",
+      "importance": 0.0063
+    },
+    {
+      "feature": "gender_Male",
+      "importance": 0.006
+    },
+    {
+      "feature": "gender_Other",
+      "importance": 0.0033
+    }
+  ]
+}

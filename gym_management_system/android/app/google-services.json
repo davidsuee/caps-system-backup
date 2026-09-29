@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "183823837767",
+    "project_id": "gymmanagementcaps",
+    "storage_bucket": "gymmanagementcaps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183823837767:android:c364f24f3deebb649b1f62",
+        "android_client_info": {
+          "package_name": "com.example.gym_management_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2V8HprCahPhzShYI5LGxSSDwYHC4CcVo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
