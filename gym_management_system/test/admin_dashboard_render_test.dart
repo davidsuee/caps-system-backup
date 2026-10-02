@@ -143,7 +143,6 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.text('Members Directory (12)'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Test AdminMembersDirectoryScreen

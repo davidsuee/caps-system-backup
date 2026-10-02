@@ -54,6 +54,12 @@ class AttendanceModel extends AttendanceEntity {
     required super.userId,
     required super.checkInTime,
     super.checkOutTime,
+    super.guestName,
+    super.isWalkIn = false,
+    super.amountPaid,
+    super.contactNumber,
+    super.paymentMethod,
+    super.notes,
   });
 
   factory AttendanceModel.fromJson(Map<String, dynamic> json, [String? id]) {
@@ -72,6 +78,13 @@ class AttendanceModel extends AttendanceEntity {
       checkOutTime: json['checkOutTime'] != null
           ? DateTime.tryParse(json['checkOutTime'].toString())
           : null,
+      guestName: json['guestName']?.toString() ?? json['guest_name']?.toString(),
+      isWalkIn: json['isWalkIn'] == true || json['is_walk_in'] == true,
+      amountPaid: (json['amountPaid'] as num?)?.toDouble() ??
+          (json['amount_paid'] as num?)?.toDouble(),
+      contactNumber: json['contactNumber']?.toString() ?? json['contact_number']?.toString(),
+      paymentMethod: json['paymentMethod']?.toString() ?? json['payment_method']?.toString(),
+      notes: json['notes']?.toString(),
     );
   }
 
@@ -81,6 +94,12 @@ class AttendanceModel extends AttendanceEntity {
       'userId': userId,
       'checkInTime': checkInTime.toIso8601String(),
       'checkOutTime': checkOutTime?.toIso8601String(),
+      'guestName': guestName,
+      'isWalkIn': isWalkIn,
+      'amountPaid': amountPaid,
+      'contactNumber': contactNumber,
+      'paymentMethod': paymentMethod,
+      'notes': notes,
     };
   }
 }

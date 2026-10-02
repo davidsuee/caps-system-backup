@@ -7,6 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/progress_log_entity.dart';
 import '../../../data/models/user_model.dart';
@@ -127,6 +128,23 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
 
   Future<void> _assignClientToMe(UserModel client, UserEntity? user) async {
     if (user == null) return;
+
+    final coachState = ref.read(coachNotifierProvider);
+    final maxCap = (user.maxClients > 0) ? user.maxClients : 20;
+    final currentCount = coachState.clients.where((c) => c.assignedCoachId == user.id).length;
+    if (currentCount >= maxCap) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Capacity reached: You have reached the maximum limit of $maxCap assigned clients.'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     final mem = LocalCacheService().getMembership(client.id);
     final isDayPass = mem != null && (mem.planName.toLowerCase().contains('day') || mem.planName.toLowerCase().contains('walk'));
     if (isDayPass) {
@@ -200,7 +218,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surfaceBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -226,8 +244,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             children: [
                               Text(
                                 client.name,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: context.titleColor,
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -235,25 +253,25 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 '${client.email} • ${client.gender}',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                style: TextStyle(color: context.subtitleColor, fontSize: 13),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textMuted),
+                          icon: Icon(Icons.close, color: context.mutedColor),
                           onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: AppColors.border),
+                    Divider(color: context.borderLine),
                     const SizedBox(height: 14),
 
                     // Client Biometrics
-                    const Text(
+                    Text(
                       'Client Biometrics & Goal',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -282,9 +300,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Assigned Workout Routine',
-                          style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                         if (workout != null)
                           Container(
@@ -310,26 +328,26 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.elevatedSurface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               workout.splitTitle,
-                              style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 15),
+                              style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w800, fontSize: 15),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               workout.summary,
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(color: context.subtitleColor, fontSize: 13),
                             ),
                             const SizedBox(height: 14),
                             Text(
                               'Prescribed Exercise Schedule (${workout.exercises.length} total):',
-                              style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13),
+                              style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w700, fontSize: 13),
                             ),
                             const SizedBox(height: 8),
                             ...List.generate(
@@ -372,7 +390,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                                   child: Text(
                                                     ex.name,
                                                     style: TextStyle(
-                                                      color: isAccomplished ? AppColors.primary : AppColors.textPrimary,
+                                                      color: isAccomplished ? AppColors.primary : context.titleColor,
                                                       fontSize: 13,
                                                       fontWeight: FontWeight.w700,
                                                     ),
@@ -398,7 +416,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                             const SizedBox(height: 2),
                                             Text(
                                               '${ex.muscleGroup} • ${ex.sets} sets × ${ex.reps} • ${ex.restSec}s rest',
-                                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                              style: TextStyle(color: context.subtitleColor, fontSize: 11),
                                             ),
                                           ],
                                         ),
@@ -428,6 +446,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                     icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.primary),
                                     label: const Text('Re-generate AI Routine', style: TextStyle(color: AppColors.primary, fontSize: 12)),
                                     style: OutlinedButton.styleFrom(
+                                      backgroundColor: context.cardColor,
                                       side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -484,21 +503,21 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.elevatedSurface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.info_outline, color: AppColors.accent, size: 20),
-                                SizedBox(width: 10),
+                                const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'No workout routine generated yet for this member.',
-                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                    style: TextStyle(color: context.subtitleColor, fontSize: 13),
                                   ),
                                 ),
                               ],
@@ -530,9 +549,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Assigned Nutrition & Meal Plan',
-                          style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                         if (meal != null)
                           Container(
@@ -558,26 +577,26 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.elevatedSurface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Target: ${meal.totalCalories.toInt()} kcal / day',
-                              style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 15),
+                              style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w800, fontSize: 15),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Protein: ${meal.totalProtein.toInt()}g • Carbs: ${meal.totalCarbs.toInt()}g • Fat: ${meal.totalFat.toInt()}g',
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(color: context.subtitleColor, fontSize: 13),
                             ),
                             const SizedBox(height: 14),
                             Text(
                               'Meal Breakdown (${meal.meals.length} meals):',
-                              style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13),
+                              style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w700, fontSize: 13),
                             ),
                             const SizedBox(height: 8),
                             ...meal.meals.map((m) {
@@ -592,7 +611,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                     Expanded(
                                       child: Text(
                                         '${m.mealName}: $foodNames (${m.slotCalories.toInt()} kcal)',
-                                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                        style: TextStyle(color: context.subtitleColor, fontSize: 12),
                                       ),
                                     ),
                                   ],
@@ -619,6 +638,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                     icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.accentCyan),
                                     label: const Text('Re-optimize Meal Plan', style: TextStyle(color: AppColors.accentCyan, fontSize: 12)),
                                     style: OutlinedButton.styleFrom(
+                                      backgroundColor: context.cardColor,
                                       side: BorderSide(color: AppColors.accentCyan.withValues(alpha: 0.5)),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -675,21 +695,21 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.elevatedSurface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.info_outline, color: AppColors.accentCyan, size: 20),
-                                SizedBox(width: 10),
+                                const Icon(Icons.info_outline, color: AppColors.accentCyan, size: 20),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'No meal plan generated yet for this member.',
-                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                    style: TextStyle(color: context.subtitleColor, fontSize: 13),
                                   ),
                                 ),
                               ],
@@ -732,17 +752,26 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     dynamic coach,
     List<UserModel> clients,
   ) {
-    if (clients.isEmpty) {
+    // STRICT ASSIGNMENT RESTRICTION:
+    // A coach can ONLY schedule 1-on-1 training sessions with clients currently assigned to them!
+    final assignedClients = clients.where((c) => c.assignedCoachId == coach.id).toList();
+
+    if (assignedClients.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No registered clients available to schedule with.')),
+        const SnackBar(
+          content: Text('No assigned clients available. You can only schedule 1-on-1 training sessions with clients assigned to your roster.'),
+          backgroundColor: AppColors.error,
+          duration: Duration(seconds: 4),
+        ),
       );
       return;
     }
 
-    String selectedMemberId = clients.first.id;
+    String selectedMemberId = assignedClients.first.id;
     String selectedFocus = 'Strength & Technique Coaching';
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-    TimeOfDay selectedTime = const TimeOfDay(hour: 14, minute: 0);
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    String? validationError;
 
     final focusOptions = [
       'Strength & Technique Coaching',
@@ -752,10 +781,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       'Nutrition & Macro Planning',
     ];
 
+    bool isOutsideOperatingHours(TimeOfDay t) {
+      return t.hour < 8 || t.hour > 23 || (t.hour == 23 && t.minute > 0);
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.surfaceBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -776,38 +809,60 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Schedule Training Session',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                        style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w800),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: AppColors.textMuted),
+                        icon: Icon(Icons.close, color: context.mutedColor),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  // Operating Hours Info Banner
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.schedule_rounded, size: 16, color: AppColors.accent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Gym Operating Hours: 8:00 AM – 11:00 PM Daily',
+                            style: TextStyle(color: context.titleColor, fontSize: 11.5, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Select Client',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                  Text(
+                    'Select Assigned Client (${assignedClients.length} available)',
+                    style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.borderLine),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: selectedMemberId,
                         isExpanded: true,
-                        dropdownColor: AppColors.surface,
-                        items: clients.map((c) {
+                        dropdownColor: context.cardColor,
+                        items: assignedClients.map((c) {
                           return DropdownMenuItem(
                             value: c.id,
-                            child: Text('${c.name} (${c.fitnessGoal})'),
+                            child: Text('${c.name} (${c.fitnessGoal})', style: TextStyle(color: context.titleColor)),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -819,25 +874,25 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     'Session Focus / Program',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.borderLine),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: selectedFocus,
                         isExpanded: true,
-                        dropdownColor: AppColors.surface,
+                        dropdownColor: context.cardColor,
                         items: focusOptions.map((f) {
-                          return DropdownMenuItem(value: f, child: Text(f));
+                          return DropdownMenuItem(value: f, child: Text(f, style: TextStyle(color: context.titleColor)));
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) {
@@ -866,10 +921,11 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           icon: const Icon(Icons.calendar_today, size: 16, color: AppColors.accent),
                           label: Text(
                             DateFormat('MMM dd, yyyy').format(selectedDate),
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                            style: TextStyle(color: context.titleColor, fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.border),
+                            backgroundColor: context.cardColor,
+                            side: BorderSide(color: context.borderLine),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -884,16 +940,28 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               initialTime: selectedTime,
                             );
                             if (picked != null) {
-                              setModalState(() => selectedTime = picked);
+                              if (isOutsideOperatingHours(picked)) {
+                                setModalState(() {
+                                  validationError = 'Gym closed: Sessions must be scheduled between 8:00 AM and 11:00 PM.';
+                                });
+                              } else {
+                                setModalState(() {
+                                  selectedTime = picked;
+                                  validationError = null;
+                                });
+                              }
                             }
                           },
                           icon: const Icon(Icons.access_time, size: 16, color: AppColors.accent),
                           label: Text(
                             selectedTime.format(context),
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                            style: TextStyle(color: context.titleColor, fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.border),
+                            backgroundColor: context.cardColor,
+                            side: BorderSide(
+                              color: validationError != null ? AppColors.error : context.borderLine,
+                            ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -901,13 +969,55 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       ),
                     ],
                   ),
+                  if (validationError != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, size: 14, color: AppColors.error),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              validationError!,
+                              style: const TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   CustomButton(
                     text: 'Confirm & Schedule Session',
                     icon: Icons.check,
                     onPressed: () async {
+                      if (isOutsideOperatingHours(selectedTime)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (!assignedClients.any((c) => c.id == selectedMemberId)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('You can only schedule training sessions with your assigned clients.'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                        return;
+                      }
+
                       Navigator.pop(ctx);
-                      final client = clients.firstWhere((c) => c.id == selectedMemberId);
+                      final client = assignedClients.firstWhere((c) => c.id == selectedMemberId);
                       final fullDateTime = DateTime(
                         selectedDate.year,
                         selectedDate.month,
@@ -933,7 +1043,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           SnackBar(
                             content: Text(success
                                 ? 'Training session booked with ${client.name}!'
-                                : 'Failed to schedule session.'),
+                                : ref.read(coachNotifierProvider).errorMessage ?? 'Failed to schedule session.'),
                             backgroundColor: success ? AppColors.primary : AppColors.error,
                           ),
                         );
@@ -955,14 +1065,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v),
-        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+        style: TextStyle(color: context.titleColor, fontSize: 13),
         decoration: InputDecoration(
           hintText: 'Search client by name, goal, email...',
-          hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 18),
+          hintStyle: TextStyle(color: context.mutedColor, fontSize: 12),
+          prefixIcon: Icon(Icons.search_rounded, color: context.mutedColor, size: 18),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+                  icon: Icon(Icons.close_rounded, size: 16, color: context.mutedColor),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -970,7 +1080,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 )
               : null,
           filled: true,
-          fillColor: AppColors.surfaceLight,
+          fillColor: context.elevatedSurface,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -978,7 +1088,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: context.borderLine),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1039,6 +1149,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       appBar: AppBar(
         title: const Text('Coach & Trainer Portal'),
         actions: [
+          const ThemeToggleButton(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Roster',
@@ -1078,13 +1189,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   gradient: LinearGradient(
                     colors: [
                       AppColors.accent.withValues(alpha: 0.2),
-                      AppColors.surface,
+                      context.cardColor,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+                  border: Border.all(color: context.isDark ? AppColors.accent.withValues(alpha: 0.4) : context.borderLine),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1106,11 +1217,11 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             children: [
                               Text(
                                 user?.name ?? 'Coach Portal',
-                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                                style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w800),
                               ),
-                              const Text(
+                              Text(
                                 'Fitness Coach • Workout & Nutrition Supervisor',
-                                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                style: TextStyle(color: context.subtitleColor, fontSize: 12),
                               ),
                             ],
                           ),
@@ -1136,9 +1247,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.borderLine),
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -1166,7 +1277,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 children: [
                   Text(
                     'Training Sessions (${coachState.sessions.length})',
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   InkWell(
                     onTap: () {
@@ -1190,14 +1301,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'No upcoming sessions scheduled yet. Tap "Book Session" to schedule.',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: context.mutedColor, fontSize: 12),
                     ),
                   ),
                 ),
@@ -1207,9 +1318,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: context.cardColor,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.borderLine),
                     ),
                     child: Row(
                       children: [
@@ -1228,12 +1339,12 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             children: [
                               Text(
                                 s.memberName,
-                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                                style: TextStyle(color: context.titleColor, fontSize: 14, fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 '${s.focus} • ${DateFormat('MMM dd, hh:mm a').format(s.dateTime)}',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                style: TextStyle(color: context.subtitleColor, fontSize: 12),
                               ),
                             ],
                           ),
@@ -1248,6 +1359,49 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             s.status.toUpperCase(),
                             style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w800),
                           ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                          tooltip: 'Cancel Session',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: context.cardColor,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                title: Text('Cancel Session', style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w800)),
+                                content: Text(
+                                  'Are you sure you want to cancel the scheduled training session with ${s.memberName} on ${DateFormat('MMM dd, hh:mm a').format(s.dateTime)}?',
+                                  style: TextStyle(color: context.subtitleColor),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: Text('Keep', style: TextStyle(color: context.mutedColor)),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Cancel Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(coachNotifierProvider.notifier).cancelSession(s.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Session with ${s.memberName} has been cancelled.'),
+                                    backgroundColor: AppColors.accent,
+                                  ),
+                                );
+                              }
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -1267,7 +1421,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         _showAllMembers
                             ? 'All Registered Members (${allUniqueMembers.length})'
                             : 'Assigned Client Roster (${matchingAssigned.length}${matchingAssigned.length != coachState.clients.length ? ' of ${coachState.clients.length}' : ''})',
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                        style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w800),
                       ),
                       if (coachState.isLoading) ...[
                         const SizedBox(width: 10),
@@ -1314,9 +1468,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     label: Text('My Clients (${coachState.clients.length})'),
                     selected: !_showAllMembers && q.isEmpty,
                     selectedColor: AppColors.accent,
-                    backgroundColor: AppColors.surface,
+                    backgroundColor: context.cardColor,
                     labelStyle: TextStyle(
-                      color: (!_showAllMembers && q.isEmpty) ? Colors.black : AppColors.textSecondary,
+                      color: (!_showAllMembers && q.isEmpty) ? Colors.black : context.subtitleColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
@@ -1333,9 +1487,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     label: Text('All Gym Members (${allUniqueMembers.length})'),
                     selected: _showAllMembers && q.isEmpty,
                     selectedColor: AppColors.accent,
-                    backgroundColor: AppColors.surface,
+                    backgroundColor: context.cardColor,
                     labelStyle: TextStyle(
-                      color: (_showAllMembers && q.isEmpty) ? Colors.black : AppColors.textSecondary,
+                      color: (_showAllMembers && q.isEmpty) ? Colors.black : context.subtitleColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
@@ -1379,23 +1533,23 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.person_outline, color: AppColors.textMuted, size: 40),
-                        SizedBox(height: 10),
+                        Icon(Icons.person_outline, color: context.mutedColor, size: 40),
+                        const SizedBox(height: 10),
                         Text(
                           'No clients registered yet',
-                          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w700),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'New registered members will appear here automatically',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          style: TextStyle(color: context.subtitleColor, fontSize: 12),
                         ),
                       ],
                     ),
@@ -1405,23 +1559,23 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: Center(
                     child: Column(
                       children: [
-                        const Icon(Icons.person_search_rounded, color: AppColors.textMuted, size: 40),
+                        Icon(Icons.person_search_rounded, color: context.mutedColor, size: 40),
                         const SizedBox(height: 10),
                         Text(
                           'No clients match "$_searchQuery"',
-                          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Try searching with a different name, fitness goal, or email',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          style: TextStyle(color: context.subtitleColor, fontSize: 12),
                         ),
                         const SizedBox(height: 14),
                         TextButton.icon(
@@ -1544,7 +1698,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: AppColors.primary.withValues(alpha: 0.35),
@@ -1564,31 +1718,31 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   child: const Icon(Icons.insights_rounded, color: AppColors.primary, size: 16),
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Progress Tracking',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800),
+                  style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.borderLine),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: activeClient.id,
                         isDense: true,
                         isExpanded: true,
-                        dropdownColor: AppColors.surface,
+                        dropdownColor: context.cardColor,
                         items: dropdownClients.map((cl) {
                           return DropdownMenuItem(
                             value: cl.id,
                             child: Text(
                               '${cl.name} • ${cl.fitnessGoal}',
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
+                              style: TextStyle(color: context.titleColor, fontSize: 11, fontWeight: FontWeight.w700),
                               overflow: TextOverflow.ellipsis,
                             ),
                           );
@@ -1651,10 +1805,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: (completedCount > 0 ? AppColors.primary : AppColors.surfaceLight).withValues(alpha: 0.15),
+                      color: (completedCount > 0 ? AppColors.primary : context.elevatedSurface).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: completedCount > 0 ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border,
+                        color: completedCount > 0 ? AppColors.primary.withValues(alpha: 0.5) : context.borderLine,
                       ),
                     ),
                     child: Row(
@@ -1663,13 +1817,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         Icon(
                           completedCount > 0 ? Icons.check_circle_rounded : Icons.fitness_center_rounded,
                           size: 11,
-                          color: completedCount > 0 ? AppColors.primary : AppColors.textSecondary,
+                          color: completedCount > 0 ? AppColors.primary : context.subtitleColor,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Today: $completedCount/$totalCount done',
                           style: TextStyle(
-                            color: completedCount > 0 ? AppColors.primary : AppColors.textSecondary,
+                            color: completedCount > 0 ? AppColors.primary : context.subtitleColor,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1682,18 +1836,18 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.lock_outline_rounded, size: 10, color: AppColors.textMuted),
-                      SizedBox(width: 4),
+                      Icon(Icons.lock_outline_rounded, size: 10, color: context.mutedColor),
+                      const SizedBox(width: 4),
                       Text(
                         'Member-Logged',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.mutedColor, fontSize: 10, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -1708,7 +1862,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.primary.withValues(alpha: 0.35),
@@ -1747,10 +1901,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         children: [
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 'Client Progress Tracking',
                                 style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color: context.titleColor,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -1765,10 +1919,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               ],
                             ],
                           ),
-                          const Text(
+                          Text(
                             'Live biometric weigh-ins & body progression',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: context.subtitleColor,
                               fontSize: 11,
                             ),
                           ),
@@ -1778,27 +1932,27 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.elevatedSurface,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.borderLine),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.visibility_outlined, size: 13, color: AppColors.textSecondary),
-                          SizedBox(width: 5),
+                          Icon(Icons.visibility_outlined, size: 13, color: context.subtitleColor),
+                          const SizedBox(width: 5),
                           Text(
                             'View Only',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700),
+                            style: TextStyle(color: context.subtitleColor, fontSize: 11, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 6),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.keyboard_arrow_up_rounded,
-                        color: AppColors.textMuted,
+                        color: context.mutedColor,
                       ),
                       tooltip: 'Collapse',
                       onPressed: () => setState(() => _isProgressExpanded = false),
@@ -1809,9 +1963,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: Row(
                     children: [
@@ -1824,9 +1978,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'Tracking:',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: context.mutedColor, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -1835,13 +1989,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             value: activeClient.id,
                             isDense: true,
                             isExpanded: true,
-                            dropdownColor: AppColors.surface,
+                            dropdownColor: context.cardColor,
                             items: dropdownClients.map((cl) {
                               return DropdownMenuItem(
                                 value: cl.id,
                                 child: Text(
                                   '${cl.name} • ${cl.fitnessGoal}',
-                                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                                  style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w700),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               );
@@ -1862,7 +2016,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: context.borderLine),
 
             Padding(
               padding: const EdgeInsets.all(16),
@@ -1891,14 +2045,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
+                            color: context.elevatedSurface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: context.borderLine),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Current Weight', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                              Text('Current Weight', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
                               const SizedBox(height: 4),
                               Text(
                                 '${currentWeight.toStringAsFixed(1)} kg',
@@ -1907,7 +2061,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 logs.isNotEmpty ? DateFormat('MMM dd, yyyy').format(logs.last.date) : 'Baseline',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                style: TextStyle(color: context.mutedColor, fontSize: 10),
                               ),
                             ],
                           ),
@@ -1918,14 +2072,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
+                            color: context.elevatedSurface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: context.borderLine),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Total Change', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                              Text('Total Change', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
                               const SizedBox(height: 4),
                               Text(
                                 '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)} kg',
@@ -1938,7 +2092,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'from ${initialWeight.toStringAsFixed(1)} kg',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                style: TextStyle(color: context.mutedColor, fontSize: 10),
                               ),
                             ],
                           ),
@@ -1949,14 +2103,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
+                            color: context.elevatedSurface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: context.borderLine),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Goal & Category', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                              Text('Goal & Category', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
                               const SizedBox(height: 4),
                               Text(
                                 activeClient.fitnessGoal,
@@ -1967,7 +2121,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'BMI ${activeClient.bmi.toStringAsFixed(1)} • ${activeClient.experienceLevel}',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                style: TextStyle(color: context.mutedColor, fontSize: 10),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1983,9 +2137,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.borderLine),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1996,14 +2150,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Weight Trend (kg)',
-                                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                                  style: TextStyle(color: context.titleColor, fontSize: 14, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Recorded biometric progression for ${activeClient.name}',
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                  style: TextStyle(color: context.subtitleColor, fontSize: 11),
                                 ),
                               ],
                             ),
@@ -2029,18 +2183,18 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.show_chart_rounded, color: AppColors.textMuted, size: 36),
+                                      Icon(Icons.show_chart_rounded, color: context.mutedColor, size: 36),
                                       const SizedBox(height: 8),
                                       Text(
                                         'Only baseline recorded (${logs.first.weightKg.toStringAsFixed(1)} kg)',
-                                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                                        style: TextStyle(color: context.subtitleColor, fontSize: 12, fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 4),
                                       Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 20),
                                         child: Text(
                                           'Progression curve will automatically render here once ${activeClient.name} logs their 2nd weigh-in in their member portal.',
-                                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                          style: TextStyle(color: context.mutedColor, fontSize: 11),
                                           textAlign: TextAlign.center,
                                         ),
                                       ),
@@ -2060,18 +2214,18 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     children: [
                       Text(
                         'Log History (${logs.length})',
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.titleColor, fontSize: 14, fontWeight: FontWeight.w700),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: context.cardColor,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Recorded by Member',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: context.mutedColor, fontSize: 10, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -2083,9 +2237,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.elevatedSurface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.borderLine),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2106,13 +2260,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 children: [
                                   Text(
                                     DateFormat('MMMM d, yyyy').format(log.date),
-                                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                   if ((log.notes ?? '').isNotEmpty) ...[
                                     const SizedBox(height: 2),
                                     Text(
                                       log.notes!,
-                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                      style: TextStyle(color: context.subtitleColor, fontSize: 11),
                                     ),
                                   ],
                                 ],
@@ -2129,7 +2283,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               if (log.bodyFatPercent != null)
                                 Text(
                                   '${log.bodyFatPercent!.toStringAsFixed(1)}% BF',
-                                  style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                  style: TextStyle(color: context.mutedColor, fontSize: 10),
                                 ),
                             ],
                           ),
@@ -2203,7 +2357,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
         borderData: FlBorderData(show: false),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => AppColors.surfaceLight,
+            getTooltipColor: (_) => context.elevatedSurface,
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final idx = spot.spotIndex;
@@ -2274,7 +2428,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '${activeClient.name} is on a 1-Day Pass which does not include coach assignment. Their workout is autonomous.',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    style: TextStyle(color: context.subtitleColor, fontSize: 11),
                   ),
                 ],
               ),
@@ -2288,7 +2442,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.primary.withValues(alpha: 0.45),
@@ -2323,17 +2477,17 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         "Today's Accomplished Workout",
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.titleColor,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       Text(
                         'Live daily workout progress logged by ${activeClient.name}',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 11),
                       ),
                     ],
                   ),
@@ -2370,17 +2524,17 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.elevatedSurface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.borderLine),
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.fitness_center_outlined, color: AppColors.textMuted, size: 28),
+                  Icon(Icons.fitness_center_outlined, color: context.mutedColor, size: 28),
                   const SizedBox(height: 8),
                   Text(
                     'No workout routine assigned yet for ${activeClient.name}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: context.subtitleColor, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 10),
                   CustomButton(
@@ -2399,9 +2553,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.elevatedSurface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.borderLine),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2412,7 +2566,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Expanded(
                         child: Text(
                           workout.splitTitle,
-                          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 14),
+                          style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w800, fontSize: 14),
                         ),
                       ),
                       Container(
@@ -2420,13 +2574,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         decoration: BoxDecoration(
                           color: (completedCount == totalCount && totalCount > 0
                                   ? AppColors.primary
-                                  : (completedCount > 0 ? AppColors.accent : AppColors.surfaceLight))
+                                  : (completedCount > 0 ? AppColors.accent : context.cardColor))
                               .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: completedCount == totalCount && totalCount > 0
                                 ? AppColors.primary
-                                : (completedCount > 0 ? AppColors.accent : AppColors.border),
+                                : (completedCount > 0 ? AppColors.accent : context.borderLine),
                           ),
                         ),
                         child: Text(
@@ -2436,7 +2590,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           style: TextStyle(
                             color: completedCount == totalCount && totalCount > 0
                                 ? AppColors.primary
-                                : (completedCount > 0 ? AppColors.accent : AppColors.textMuted),
+                                : (completedCount > 0 ? AppColors.accent : context.mutedColor),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -2452,7 +2606,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     children: [
                       Text(
                         'Session Progress: $completedCount of $totalCount exercises completed today',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         '${(progressRatio * 100).toInt()}%',
@@ -2466,7 +2620,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     child: LinearProgressIndicator(
                       value: progressRatio,
                       minHeight: 7,
-                      backgroundColor: AppColors.surfaceLight,
+                      backgroundColor: context.cardColor,
                       valueColor: AlwaysStoppedAnimation<Color>(
                         completedCount == totalCount && totalCount > 0
                             ? AppColors.primary
@@ -2502,10 +2656,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primary : AppColors.surface,
+                            color: isSelected ? AppColors.primary : context.cardColor,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isSelected ? AppColors.primary : AppColors.border,
+                              color: isSelected ? AppColors.primary : context.borderLine,
                             ),
                           ),
                           child: Row(
@@ -2514,13 +2668,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               Icon(
                                 isDayAllDone ? Icons.check_circle_rounded : Icons.calendar_today_rounded,
                                 size: 13,
-                                color: isSelected ? Colors.black : (isDayAllDone ? AppColors.primary : AppColors.textMuted),
+                                color: isSelected ? Colors.black : (isDayAllDone ? AppColors.primary : context.mutedColor),
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 tag,
                                 style: TextStyle(
-                                  color: isSelected ? Colors.black : AppColors.textPrimary,
+                                  color: isSelected ? Colors.black : context.titleColor,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -2529,13 +2683,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? Colors.black.withValues(alpha: 0.15) : AppColors.surfaceLight,
+                                  color: isSelected ? Colors.black.withValues(alpha: 0.15) : context.elevatedSurface,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   '$dayDone/${dayExs.length}',
                                   style: TextStyle(
-                                    color: isSelected ? Colors.black : AppColors.textSecondary,
+                                    color: isSelected ? Colors.black : context.subtitleColor,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -2595,8 +2749,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           children: [
                             Text(
                               ex.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: context.titleColor,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 13,
                               ),
@@ -2609,15 +2763,15 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 if (ex.dayTag.isNotEmpty)
                                   _buildMiniBadge(ex.dayTag, AppColors.accent),
                                 _buildMiniBadge(ex.muscleGroup, AppColors.accentCyan),
-                                _buildMiniBadge('${ex.sets} sets × ${ex.reps}', AppColors.textSecondary),
-                                _buildMiniBadge(ex.equipment, AppColors.textMuted),
+                                _buildMiniBadge('${ex.sets} sets × ${ex.reps}', context.subtitleColor),
+                                _buildMiniBadge(ex.equipment, context.mutedColor),
                               ],
                             ),
                             if ((ex.instructions ?? '').isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
                                 ex.instructions!,
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontStyle: FontStyle.italic),
+                                style: TextStyle(color: context.mutedColor, fontSize: 10, fontStyle: FontStyle.italic),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -2658,12 +2812,12 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.pending_actions_rounded, color: AppColors.textSecondary, size: 15),
+                  Icon(Icons.pending_actions_rounded, color: context.subtitleColor, size: 15),
                   const SizedBox(width: 6),
                   Text(
                     'Remaining for Session (${totalCount - completedCount}):',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.subtitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2676,13 +2830,13 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.radio_button_unchecked_rounded, color: AppColors.textMuted, size: 20),
+                      Icon(Icons.radio_button_unchecked_rounded, color: context.mutedColor, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -2690,8 +2844,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           children: [
                             Text(
                               ex.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: context.titleColor,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -2702,10 +2856,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               runSpacing: 4,
                               children: [
                                 if (ex.dayTag.isNotEmpty)
-                                  _buildMiniBadge(ex.dayTag, AppColors.textMuted),
-                                _buildMiniBadge(ex.muscleGroup, AppColors.textSecondary),
-                                _buildMiniBadge('${ex.sets} sets × ${ex.reps}', AppColors.textSecondary),
-                                _buildMiniBadge(ex.equipment, AppColors.textMuted),
+                                  _buildMiniBadge(ex.dayTag, context.mutedColor),
+                                _buildMiniBadge(ex.muscleGroup, context.subtitleColor),
+                                _buildMiniBadge('${ex.sets} sets × ${ex.reps}', context.subtitleColor),
+                                _buildMiniBadge(ex.equipment, context.mutedColor),
                               ],
                             ),
                           ],
@@ -2714,14 +2868,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.cardColor,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
-                        child: const Text(
+                        child: Text(
                           'PENDING',
                           style: TextStyle(
-                            color: AppColors.textMuted,
+                            color: context.mutedColor,
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2741,7 +2895,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   gradient: LinearGradient(
                     colors: [
                       AppColors.primary.withValues(alpha: 0.2),
-                      AppColors.surface,
+                      context.cardColor,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -2754,7 +2908,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     Expanded(
                       child: Text(
                         'Full workout session accomplished! ${activeClient.name} completed all $totalCount exercises today.',
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -2793,10 +2947,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isTrackingActive ? AppColors.primary : AppColors.border,
+            color: isTrackingActive ? AppColors.primary : context.borderLine,
             width: isTrackingActive ? 1.6 : 1,
           ),
           boxShadow: isTrackingActive
@@ -2832,7 +2986,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           Flexible(
                             child: Text(
                               c.name,
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                              style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                             ),
                           ),
                           if (isTrackingActive) ...[
@@ -2853,7 +3007,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       ),
                       Text(
                         'Goal: ${c.fitnessGoal} • ${c.experienceLevel}',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -2899,7 +3053,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Flexible(
                         child: Text(
                           workout?.splitTitle ?? 'Tap to track biometrics or inspect',
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -2912,16 +3066,16 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: (done > 0 ? AppColors.primary : AppColors.surfaceLight).withValues(alpha: 0.15),
+                              color: (done > 0 ? AppColors.primary : context.elevatedSurface).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: done > 0 ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
+                                color: done > 0 ? AppColors.primary.withValues(alpha: 0.4) : context.borderLine,
                               ),
                             ),
                             child: Text(
                               '$done/$total Accomplished',
                               style: TextStyle(
-                                color: done > 0 ? AppColors.primary : AppColors.textMuted,
+                                color: done > 0 ? AppColors.primary : context.mutedColor,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -2939,7 +3093,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         backgroundColor: isTrackingActive
                             ? AppColors.primary.withValues(alpha: 0.2)
-                            : AppColors.surfaceLight,
+                            : context.elevatedSurface,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _selectAndTrackClient(c),
@@ -2950,7 +3104,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        backgroundColor: AppColors.surfaceLight,
+                        backgroundColor: context.elevatedSurface,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _showClientDetails(context, ref, c, workout, meal),
@@ -2983,14 +3137,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isTrackingActive
                 ? AppColors.primary
                 : (isDayPass
                     ? Colors.amber.withValues(alpha: 0.3)
-                    : (isUnassigned ? AppColors.accent.withValues(alpha: 0.4) : AppColors.border)),
+                    : (isUnassigned ? AppColors.accent.withValues(alpha: 0.4) : context.borderLine)),
             width: isTrackingActive ? 1.6 : 1,
           ),
         ),
@@ -3025,7 +3179,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           Flexible(
                             child: Text(
                               c.name,
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                              style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w800),
                             ),
                           ),
                           if (isTrackingActive) ...[
@@ -3047,7 +3201,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       const SizedBox(height: 2),
                       Text(
                         '${c.age > 0 ? '${c.age}yo • ' : ''}${c.gender.isNotEmpty ? '${c.gender} • ' : ''}${c.fitnessGoal} • ${c.experienceLevel}',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -3085,7 +3239,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       Flexible(
                         child: Text(
                           workout?.splitTitle ?? (isDayPass ? '1-Day Full Body Express Routine' : 'No workout routine assigned'),
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          style: TextStyle(color: context.mutedColor, fontSize: 12),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -3098,16 +3252,16 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: (done > 0 ? AppColors.primary : AppColors.surfaceLight).withValues(alpha: 0.15),
+                              color: (done > 0 ? AppColors.primary : context.elevatedSurface).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: done > 0 ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
+                                color: done > 0 ? AppColors.primary.withValues(alpha: 0.4) : context.borderLine,
                               ),
                             ),
                             child: Text(
                               '$done/$total Accomplished',
                               style: TextStyle(
-                                color: done > 0 ? AppColors.primary : AppColors.textMuted,
+                                color: done > 0 ? AppColors.primary : context.mutedColor,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -3127,7 +3281,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         backgroundColor: isTrackingActive
                             ? AppColors.primary.withValues(alpha: 0.2)
-                            : AppColors.surfaceLight,
+                            : context.elevatedSurface,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _selectAndTrackClient(c),
@@ -3151,12 +3305,12 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        backgroundColor: AppColors.surfaceLight,
+                        backgroundColor: context.elevatedSurface,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _showClientDetails(context, ref, c, workout, meal),
-                      icon: const Icon(Icons.visibility_outlined, size: 14, color: AppColors.textPrimary),
-                      label: const Text('View Profile', style: TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600)),
+                      icon: Icon(Icons.visibility_outlined, size: 14, color: context.titleColor),
+                      label: Text('View Profile', style: TextStyle(color: context.titleColor, fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -3181,12 +3335,12 @@ class _CoachStat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
+          style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+          style: TextStyle(color: context.subtitleColor, fontSize: 11),
         ),
       ],
     );
@@ -3204,15 +3358,15 @@ class _InfoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.elevatedSurface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+          Text(label, style: TextStyle(color: context.mutedColor, fontSize: 10)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w700)),
         ],
       ),
     );

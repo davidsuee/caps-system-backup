@@ -23,4 +23,12 @@ class AppRoutes {
   static const String adminFacilities = '/admin/facilities';
   static const String aiBenchmark = '/admin/ai-benchmark';
   static const String adminAttendance = '/admin/attendance';
+  static const String adminPayment = '/admin/record-payment';
+
+  // Public Information Routes (Dedicated Separate Pages)
+  static const String publicFeatures = '/features';
+  static const String publicAmenities = '/amenities';
+  static const String publicMemberships = '/membership-tiers';
+  static const String publicLocation = '/location-hours';
+  static const String publicRules = '/rules-regulations';
 }

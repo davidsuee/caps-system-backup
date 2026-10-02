@@ -42,6 +42,9 @@ void main() {
     });
 
     test('Coach repository loads real assigned clients and routines', () async {
+      final coaches = localCache.getUsersByRole(UserRole.coach);
+      expect(coaches.isNotEmpty, isTrue);
+      localCache.setCurrentUser(coaches.first);
       final clients = await coachRepo.getAssignedClients();
       expect(clients.isNotEmpty, isTrue);
       expect(clients.every((c) => c.role == UserRole.member), isTrue);

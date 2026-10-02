@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../providers/admin_provider.dart';
 
 class AiBenchmarkScreen extends ConsumerStatefulWidget {
@@ -81,22 +82,23 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.cardColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: context.titleColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'AI & ISO 25010 Benchmark',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.titleColor,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         actions: [
+          const ThemeToggleButton(),
           IconButton(
             icon: _isRunningSimulation
                 ? const SizedBox(
@@ -185,7 +187,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
             gradient: LinearGradient(
               colors: [
                 AppColors.primary.withValues(alpha: 0.15),
-                AppColors.surfaceLight,
+                context.cardColor,
               ],
             ),
             borderRadius: BorderRadius.circular(20),
@@ -196,22 +198,22 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'ISO/IEC 25010 Grand Mean',
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: context.titleColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Evaluated by IT Experts, Gym Staff & Members (N=35)',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                          style: TextStyle(color: context.subtitleColor, fontSize: 11),
                         ),
                       ],
                     ),
@@ -237,18 +239,18 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.elevatedSurface,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.workspace_premium_rounded, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
+                    const Icon(Icons.workspace_premium_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Verbal Interpretation: STRONGLY ACCEPTABLE / EXCELLENT',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.titleColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                         ),
@@ -264,15 +266,15 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
 
         // Live Benchmark Summary Card if run
         if (_liveBenchmarkResult != null) ...[
-          _buildLiveResultCard(),
+          _buildLiveResultCard(context),
           const SizedBox(height: 18),
         ],
 
         // Criteria Breakdown
-        const Text(
+        Text(
           'Detailed Software Quality Dimensions',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.titleColor,
             fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
@@ -289,9 +291,9 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.borderLine),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,8 +304,8 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.titleColor,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                         ),
@@ -322,7 +324,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                 const SizedBox(height: 6),
                 Text(
                   desc,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, height: 1.3),
+                  style: TextStyle(color: context.subtitleColor, fontSize: 11, height: 1.3),
                 ),
                 const SizedBox(height: 10),
                 ClipRRect(
@@ -330,7 +332,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 6,
-                    backgroundColor: AppColors.surfaceLight,
+                    backgroundColor: context.elevatedSurface,
                     valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
@@ -351,7 +353,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
           ),
@@ -361,10 +363,10 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Live System Benchmark',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.titleColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -374,7 +376,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                       _liveBenchmarkResult != null
                           ? 'Latest run: ${_liveBenchmarkResult!['totalLatencyMs']} ms total latency'
                           : 'Evaluate ML inference, LP solver, and coach allocation live',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      style: TextStyle(color: context.subtitleColor, fontSize: 11),
                     ),
                   ],
                 ),
@@ -398,12 +400,13 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
         const SizedBox(height: 16),
 
         if (_liveBenchmarkResult != null) ...[
-          _buildLiveResultCard(),
+          _buildLiveResultCard(context),
           const SizedBox(height: 16),
         ],
 
         // 1. ML Workout Model Card
         _buildMetricSection(
+          context: context,
           title: '1. Workout Recommendation Engine (ML)',
           subtitle: 'Supervised Random Forest Classifier (n_estimators=100)',
           badgeColor: AppColors.primary,
@@ -421,6 +424,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
 
         // 2. LP Meal Optimization Card
         _buildMetricSection(
+          context: context,
           title: '2. Nutrition Recommendation Engine (Optimization)',
           subtitle: 'Linear Programming Simplex Solver (PuLP / OR-Tools)',
           badgeColor: AppColors.accentCyan,
@@ -438,6 +442,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
 
         // 3. Trainer Assignment Optimization Card
         _buildMetricSection(
+          context: context,
           title: '3. Trainer Assignment Balancer (Objective 4)',
           subtitle: 'Capacity-Constrained Bipartite Workload Matching (DFD 6.0)',
           badgeColor: AppColors.accent,
@@ -455,12 +460,12 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
     );
   }
 
-  Widget _buildLiveResultCard() {
+  Widget _buildLiveResultCard(BuildContext context) {
     final r = _liveBenchmarkResult!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.elevatedSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary),
       ),
@@ -470,17 +475,17 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
-                    SizedBox(width: 8),
+                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Live Execution Verification',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800),
+                        style: TextStyle(color: context.titleColor, fontSize: 14, fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],
@@ -504,10 +509,10 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Expanded(child: _buildMiniMetric('${r['mlInferenceMs']}ms', 'ML Model', AppColors.primary)),
-              Expanded(child: _buildMiniMetric('${r['lpSolverMs']}ms', 'LP Solver', AppColors.accentCyan)),
-              Expanded(child: _buildMiniMetric('${r['trainerOptimizationMs']}ms', 'Trainer Match', AppColors.accent)),
-              Expanded(child: _buildMiniMetric('${r['totalLatencyMs']}ms', 'Total Latency', Colors.purpleAccent)),
+              Expanded(child: _buildMiniMetric('${r['mlInferenceMs']}ms', 'ML Model', AppColors.primary, context)),
+              Expanded(child: _buildMiniMetric('${r['lpSolverMs']}ms', 'LP Solver', AppColors.accentCyan, context)),
+              Expanded(child: _buildMiniMetric('${r['trainerOptimizationMs']}ms', 'Trainer Match', AppColors.accent, context)),
+              Expanded(child: _buildMiniMetric('${r['totalLatencyMs']}ms', 'Total Latency', Colors.purpleAccent, context)),
             ],
           ),
         ],
@@ -515,17 +520,18 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
     );
   }
 
-  Widget _buildMiniMetric(String val, String label, Color color) {
+  Widget _buildMiniMetric(String val, String label, Color color, BuildContext context) {
     return Column(
       children: [
         Text(val, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w900)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(color: context.subtitleColor, fontSize: 10, fontWeight: FontWeight.w600)),
       ],
     );
   }
 
   Widget _buildMetricSection({
+    required BuildContext context,
     required String title,
     required String subtitle,
     required Color badgeColor,
@@ -535,9 +541,9 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,8 +557,8 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -560,7 +566,7 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      style: TextStyle(color: context.mutedColor, fontSize: 11),
                     ),
                   ],
                 ),
@@ -593,9 +599,9 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                 width: 140,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
+                  color: context.elevatedSurface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.borderLine),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,8 +617,8 @@ class _AiBenchmarkScreenState extends ConsumerState<AiBenchmarkScreen>
                     const SizedBox(height: 4),
                     Text(
                       item['label']!,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.subtitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),

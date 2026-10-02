@@ -10,6 +10,8 @@ import '../../../core/utils/validators.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../workout/providers/workout_provider.dart';
 import '../../meal/providers/meal_provider.dart';
+import '../../dashboard/widgets/member_app_bar.dart';
+import '../../dashboard/widgets/member_bottom_nav.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -118,16 +120,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
+      appBar: MemberAppBar(
+        title: 'Member Profile',
+        subtitle: 'Account Settings & Biometrics',
+        icon: Icons.person_rounded,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              context.go(AppRoutes.welcome);
-              await ref.read(authNotifierProvider.notifier).logout();
-            },
+          Container(
+            decoration: BoxDecoration(
+              color: context.cardColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.borderLine),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+              tooltip: 'Sign Out',
+              onPressed: () async {
+                context.go(AppRoutes.welcome);
+                await ref.read(authNotifierProvider.notifier).logout();
+              },
+            ),
           ),
         ],
       ),
@@ -156,12 +167,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 12),
                     Text(
                       user.name,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800),
+                      style: TextStyle(color: context.titleColor, fontSize: 20, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user.email,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: context.subtitleColor, fontSize: 13),
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -272,6 +283,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const MemberBottomNav(currentIndex: 4),
     );
   }
 
@@ -279,21 +291,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: context.elevatedSurface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.borderLine),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: AppColors.surface,
-              items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+              dropdownColor: context.cardColor,
+              items: options.map((o) => DropdownMenuItem(value: o, child: Text(o, style: TextStyle(color: context.titleColor, fontSize: 14)))).toList(),
               onChanged: (v) {
                 if (v != null) onChanged(v);
               },
@@ -318,9 +330,9 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +341,7 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(color: AppColors.textMuted, fontSize: 10), maxLines: 1),
+          Text(sub, style: TextStyle(color: context.mutedColor, fontSize: 10), maxLines: 1),
         ],
       ),
     );

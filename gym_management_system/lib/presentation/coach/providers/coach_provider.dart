@@ -150,12 +150,29 @@ class CoachNotifier extends Notifier<CoachState> {
   }
 
   Future<bool> scheduleSession(TrainingSessionModel session) async {
-    // Optimistic UI update
-    final newSessions = [session, ...state.sessions];
-    state = state.copyWith(sessions: newSessions);
+    final h = session.dateTime.hour;
+    final m = session.dateTime.minute;
+    if (h < 8 || h > 23 || (h == 23 && m > 0)) {
+      state = state.copyWith(errorMessage: 'Cannot schedule session outside gym operating hours (8:00 AM – 11:00 PM).');
+      return false;
+    }
 
     try {
       await _repo.scheduleSession(session);
+      final newSessions = [session, ...state.sessions];
+      state = state.copyWith(sessions: newSessions, errorMessage: null);
+      return true;
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> cancelSession(String sessionId) async {
+    try {
+      await _repo.cancelSession(sessionId);
+      final updated = state.sessions.where((s) => s.id != sessionId).toList();
+      state = state.copyWith(sessions: updated);
       return true;
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());

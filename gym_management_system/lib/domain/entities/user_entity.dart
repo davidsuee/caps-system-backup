@@ -68,7 +68,7 @@ class UserEntity {
     required this.createdAt,
     this.assignedCoachId,
     this.specialization,
-    this.maxClients = 8,
+    this.maxClients = 20,
   });
 
   double get bmi {
@@ -95,6 +95,7 @@ class UserEntity {
     String? profilePhotoUrl,
     DateTime? createdAt,
     String? assignedCoachId,
+    bool clearAssignedCoach = false,
     String? specialization,
     int? maxClients,
   }) {
@@ -115,7 +116,7 @@ class UserEntity {
       injuryFlags: injuryFlags ?? this.injuryFlags,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
       createdAt: createdAt ?? this.createdAt,
-      assignedCoachId: assignedCoachId ?? this.assignedCoachId,
+      assignedCoachId: clearAssignedCoach ? null : (assignedCoachId ?? this.assignedCoachId),
       specialization: specialization ?? this.specialization,
       maxClients: maxClients ?? this.maxClients,
     );

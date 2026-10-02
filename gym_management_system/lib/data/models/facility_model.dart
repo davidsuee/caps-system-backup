@@ -20,7 +20,7 @@ class FacilityModel extends FacilityEntity {
       capacity: int.tryParse(json['capacity']?.toString() ?? '25') ?? 25,
       currentOccupancy: int.tryParse(json['current_occupancy']?.toString() ?? json['currentOccupancy']?.toString() ?? '0') ?? 0,
       status: json['status']?.toString() ?? 'open',
-      operatingHours: json['operating_hours']?.toString() ?? json['operatingHours']?.toString() ?? '6:00 AM - 10:00 PM',
+      operatingHours: json['operating_hours']?.toString() ?? json['operatingHours']?.toString() ?? '8:00 AM - 11:00 PM',
       iconName: json['icon_name']?.toString() ?? json['iconName']?.toString(),
     );
   }

@@ -16,7 +16,13 @@ import '../presentation/admin/screens/admin_coaches_directory_screen.dart';
 import '../presentation/admin/screens/admin_facilities_screen.dart';
 import '../presentation/admin/screens/admin_attendance_screen.dart';
 import '../presentation/admin/screens/ai_benchmark_screen.dart';
+import '../presentation/admin/screens/admin_record_payment_screen.dart';
 import '../presentation/landing/screens/welcome_screen.dart';
+import '../presentation/landing/screens/features_screen.dart';
+import '../presentation/landing/screens/amenities_screen.dart';
+import '../presentation/landing/screens/membership_tiers_screen.dart';
+import '../presentation/landing/screens/location_hours_screen.dart';
+import '../presentation/landing/screens/rules_regulations_screen.dart';
 
 bool _initialLaunchHandled = false;
 
@@ -128,7 +134,45 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.adminAttendance,
-      builder: (context, state) => const AdminAttendanceScreen(),
+      builder: (context, state) {
+        final tabStr = state.uri.queryParameters['tab'];
+        final initialTab = tabStr != null ? (int.tryParse(tabStr) ?? 0) : 0;
+        return AdminAttendanceScreen(initialTab: initialTab);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.adminPayment,
+      builder: (context, state) {
+        final preselectedUserId = state.uri.queryParameters['userId'];
+        final preselectedPlan = state.uri.queryParameters['plan'];
+        final tabStr = state.uri.queryParameters['tab'];
+        final initialTab = tabStr != null ? (int.tryParse(tabStr) ?? 0) : 0;
+        return AdminRecordPaymentScreen(
+          preselectedUserId: preselectedUserId,
+          preselectedPlan: preselectedPlan,
+          initialTab: initialTab,
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.publicFeatures,
+      builder: (context, state) => const FeaturesScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.publicAmenities,
+      builder: (context, state) => const AmenitiesScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.publicMemberships,
+      builder: (context, state) => const MembershipTiersScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.publicLocation,
+      builder: (context, state) => const LocationHoursScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.publicRules,
+      builder: (context, state) => const RulesRegulationsScreen(),
     ),
   ],
 );

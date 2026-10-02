@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../data/models/user_model.dart';
 import '../../../domain/entities/trainer_assignment_entity.dart';
 import '../providers/admin_provider.dart';
@@ -56,7 +57,7 @@ class _AdminCoachesDirectoryScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -77,7 +78,7 @@ class _AdminCoachesDirectoryScreenState
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: AppColors.textMuted,
+                      color: context.mutedColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -108,7 +109,7 @@ class _AdminCoachesDirectoryScreenState
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Constraint-based matching under DFD 6.0 engine',
+                            'Constraint-based workload & synergy matching',
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -125,9 +126,9 @@ class _AdminCoachesDirectoryScreenState
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -135,15 +136,15 @@ class _AdminCoachesDirectoryScreenState
                       _buildMetricItem(
                         label: 'Evaluated',
                         value: '${result.totalEvaluated}',
-                        color: AppColors.textPrimary,
+                        color: context.titleColor,
                       ),
-                      Container(width: 1, height: 32, color: AppColors.border),
+                      Container(width: 1, height: 32, color: context.borderLine),
                       _buildMetricItem(
                         label: 'Matches Formed',
                         value: '${result.newlyAssignedCount}',
                         color: AppColors.primary,
                       ),
-                      Container(width: 1, height: 32, color: AppColors.border),
+                      Container(width: 1, height: 32, color: context.borderLine),
                       _buildMetricItem(
                         label: 'Synergy Avg',
                         value: result.matches.isEmpty
@@ -156,10 +157,10 @@ class _AdminCoachesDirectoryScreenState
                 ),
                 const SizedBox(height: 20),
 
-                const Text(
+                Text(
                   'Allocated Pairings & Compatibility Details',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.titleColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -170,13 +171,13 @@ class _AdminCoachesDirectoryScreenState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'All members are currently optimally assigned to coaches!',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 13),
                       ),
                     ),
                   )
@@ -244,9 +245,9 @@ class _AdminCoachesDirectoryScreenState
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,8 +260,8 @@ class _AdminCoachesDirectoryScreenState
                   children: [
                     Text(
                       m.memberName,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -277,8 +278,8 @@ class _AdminCoachesDirectoryScreenState
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_rounded,
-                  color: AppColors.textMuted, size: 18),
+              Icon(Icons.arrow_forward_rounded,
+                  color: context.mutedColor, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -287,8 +288,8 @@ class _AdminCoachesDirectoryScreenState
                     Text(
                       m.coachName,
                       textAlign: TextAlign.end,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -312,9 +313,9 @@ class _AdminCoachesDirectoryScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.elevatedSurface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+              border: Border.all(color: context.borderLine),
             ),
             child: Row(
               children: [
@@ -386,22 +387,23 @@ class _AdminCoachesDirectoryScreenState
             .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.cardColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: context.titleColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Coaches Directory',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.titleColor,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         actions: [
+          const ThemeToggleButton(),
           Container(
             margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -438,7 +440,7 @@ class _AdminCoachesDirectoryScreenState
               gradient: LinearGradient(
                 colors: [
                   AppColors.primary.withValues(alpha: 0.18),
-                  AppColors.surfaceLight,
+                  context.cardColor,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -461,16 +463,16 @@ class _AdminCoachesDirectoryScreenState
                           color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Trainer Assignment Engine (DFD 6.0)',
+                            'Trainer Assignment Engine',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.titleColor,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -480,7 +482,7 @@ class _AdminCoachesDirectoryScreenState
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: context.subtitleColor,
                               fontSize: 11,
                             ),
                           ),
@@ -554,18 +556,18 @@ class _AdminCoachesDirectoryScreenState
           // Search bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            color: AppColors.surface,
+            color: context.cardColor,
             child: TextField(
               onChanged: (v) => setState(() => _searchQuery = v),
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: TextStyle(color: context.titleColor, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search by name, email, or specialization...',
                 hintStyle:
-                    const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    TextStyle(color: context.mutedColor, fontSize: 13),
                 prefixIcon:
-                    const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                    Icon(Icons.search, color: context.mutedColor, size: 20),
                 filled: true,
-                fillColor: AppColors.surfaceLight,
+                fillColor: context.elevatedSurface,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
@@ -574,7 +576,7 @@ class _AdminCoachesDirectoryScreenState
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: context.borderLine),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -598,13 +600,13 @@ class _AdminCoachesDirectoryScreenState
                           children: [
                             Icon(Icons.sports_gymnastics_rounded,
                                 color:
-                                    AppColors.textMuted.withValues(alpha: 0.5),
+                                    context.mutedColor.withValues(alpha: 0.5),
                                 size: 56),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'No coaches found',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: context.titleColor,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -614,8 +616,8 @@ class _AdminCoachesDirectoryScreenState
                               _searchQuery.isNotEmpty
                                   ? 'Try a different search query'
                                   : 'No registered coaches yet',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: context.subtitleColor,
                                 fontSize: 13,
                               ),
                             ),
@@ -649,7 +651,7 @@ class _AdminCoachesDirectoryScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -660,7 +662,7 @@ class _AdminCoachesDirectoryScreenState
           maxChildSize: 0.95,
           expand: false,
           builder: (_, scrollController) {
-            final maxCap = coach.maxClients > 0 ? coach.maxClients : 8;
+            final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
             final utilRatio = (assigned.length / maxCap).clamp(0.0, 1.0);
             final utilPercent = (utilRatio * 100).round();
 
@@ -674,7 +676,7 @@ class _AdminCoachesDirectoryScreenState
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
-                      color: AppColors.textMuted,
+                      color: context.mutedColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -702,8 +704,8 @@ class _AdminCoachesDirectoryScreenState
                         children: [
                           Text(
                             coach.name,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
+                            style: TextStyle(
+                              color: context.titleColor,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
@@ -711,8 +713,8 @@ class _AdminCoachesDirectoryScreenState
                           const SizedBox(height: 2),
                           Text(
                             coach.email,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: context.subtitleColor,
                               fontSize: 12,
                             ),
                           ),
@@ -744,9 +746,9 @@ class _AdminCoachesDirectoryScreenState
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -754,13 +756,47 @@ class _AdminCoachesDirectoryScreenState
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Current Workload Capacity',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                'Current Workload Capacity',
+                                style: TextStyle(
+                                  color: context.titleColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _showEditCapacityDialog(context, coach);
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_rounded, size: 11, color: AppColors.primary),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Edit Limit',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           Text(
                             '${assigned.length} / $maxCap ($utilPercent%)',
@@ -809,18 +845,43 @@ class _AdminCoachesDirectoryScreenState
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _showManualAssignPicker(context, coach);
-                      },
-                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                      label: const Text('Add Member'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        visualDensity: VisualDensity.compact,
+                    if (assigned.length >= maxCap)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.block_rounded, size: 14, color: AppColors.error),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Capacity Full (Max $maxCap/$maxCap)',
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showManualAssignPicker(context, coach);
+                        },
+                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                        label: const Text('Add Member'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -829,13 +890,13 @@ class _AdminCoachesDirectoryScreenState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: context.elevatedSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'No clients currently assigned to this coach.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 12),
                       ),
                     ),
                   )
@@ -845,9 +906,9 @@ class _AdminCoachesDirectoryScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: context.elevatedSurface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderLine),
                         ),
                         child: Row(
                           children: [
@@ -873,16 +934,16 @@ class _AdminCoachesDirectoryScreenState
                                 children: [
                                   Text(
                                     member.name,
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
+                                    style: TextStyle(
+                                      color: context.titleColor,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                   Text(
                                     'Goal: ${member.fitnessGoal}',
-                                    style: const TextStyle(
-                                      color: AppColors.textMuted,
+                                    style: TextStyle(
+                                      color: context.mutedColor,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -894,13 +955,23 @@ class _AdminCoachesDirectoryScreenState
                                   color: AppColors.textMuted, size: 18),
                               tooltip: 'Unassign client',
                               onPressed: () async {
-                                await ref
+                                final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
+                                final ok = await ref
                                     .read(adminNotifierProvider.notifier)
                                     .manuallyAssignCoach(
                                       memberId: member.id,
                                       coachId: '',
                                     );
                                 if (ctx.mounted) Navigator.pop(ctx);
+                                scaffoldMessenger?.showSnackBar(
+                                  SnackBar(
+                                    content: Text(ok
+                                        ? 'Unassigned ${member.name} from ${coach.name}.'
+                                        : 'Failed to unassign client.'),
+                                    backgroundColor:
+                                        ok ? AppColors.primary : AppColors.error,
+                                  ),
+                                );
                               },
                             ),
                           ],
@@ -931,9 +1002,127 @@ class _AdminCoachesDirectoryScreenState
     );
   }
 
+  void _showEditCapacityDialog(BuildContext context, UserModel coach) {
+    int selectedCap = coach.maxClients > 0 ? coach.maxClients : 20;
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          backgroundColor: context.cardColor,
+          title: Text(
+            'Adjust Client Limit for ${coach.name}',
+            style: TextStyle(
+              color: context.titleColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Set the maximum active client slots for this coach:',
+                style: TextStyle(color: context.subtitleColor, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, color: AppColors.primary),
+                    onPressed: selectedCap > 1 ? () => setDlgState(() => selectedCap--) : null,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: context.elevatedSurface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: context.borderLine),
+                    ),
+                    child: Text(
+                      '$selectedCap Clients',
+                      style: TextStyle(
+                        color: context.titleColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                    onPressed: selectedCap < 50 ? () => setDlgState(() => selectedCap++) : null,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [10, 15, 20, 25, 30].map((val) {
+                  final isSelected = selectedCap == val;
+                  return ChoiceChip(
+                    label: Text('$val'),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    onSelected: (_) => setDlgState(() => selectedCap = val),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(dlgCtx);
+                final ok = await ref.read(adminNotifierProvider.notifier).updateCoachCapacity(
+                      coachId: coach.id,
+                      maxClients: selectedCap,
+                    );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? 'Capacity for ${coach.name} updated to $selectedCap clients.'
+                          : 'Failed to update coach capacity.'),
+                      backgroundColor: ok ? AppColors.primary : AppColors.error,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save Limit', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showManualAssignPicker(BuildContext context, UserModel coach) {
     final adminState = ref.read(adminNotifierProvider);
     final allMembers = adminState.members;
+    final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
+    final currentAssigned = allMembers
+        .where((m) => m.assignedCoachId == coach.id && !_isDayPassMember(m.id, adminState))
+        .length;
+
+    if (currentAssigned >= maxCap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot assign: Coach ${coach.name} is already at full capacity ($currentAssigned/$maxCap clients).'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final unassignedOrOther = allMembers
         .where((m) => m.assignedCoachId != coach.id && !_isDayPassMember(m.id, adminState))
         .toList();
@@ -941,7 +1130,7 @@ class _AdminCoachesDirectoryScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1079,11 +1268,12 @@ class _CoachRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCap = coach.maxClients > 0 ? coach.maxClients : 8;
+    final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
     final assignedCount = assignedMembers.length;
     final ratio = (assignedCount / maxCap).clamp(0.0, 1.0);
     final percent = (ratio * 100).round();
-    final loadColor = percent >= 90
+    final isFull = assignedCount >= maxCap;
+    final loadColor = isFull
         ? AppColors.error
         : (percent >= 60 ? AppColors.warning : AppColors.success);
 
@@ -1094,9 +1284,9 @@ class _CoachRecordCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: isFull ? AppColors.error.withValues(alpha: 0.4) : context.borderLine),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1124,8 +1314,8 @@ class _CoachRecordCard extends StatelessWidget {
                         coach.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.titleColor,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1135,8 +1325,8 @@ class _CoachRecordCard extends StatelessWidget {
                         coach.email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.subtitleColor,
                           fontSize: 12,
                         ),
                       ),
@@ -1147,13 +1337,16 @@ class _CoachRecordCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.15),
+                    color: isFull
+                        ? AppColors.error.withValues(alpha: 0.15)
+                        : AppColors.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
+                    border: isFull ? Border.all(color: AppColors.error.withValues(alpha: 0.4)) : null,
                   ),
-                  child: const Text(
-                    'Coach',
+                  child: Text(
+                    isFull ? 'FULL ($maxCap/$maxCap)' : 'Coach',
                     style: TextStyle(
-                      color: AppColors.accent,
+                      color: isFull ? AppColors.error : AppColors.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1167,9 +1360,9 @@ class _CoachRecordCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: context.elevatedSurface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.borderLine),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1198,16 +1391,18 @@ class _CoachRecordCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Workload Capacity',
                   style: TextStyle(
-                    color: AppColors.textMuted,
+                    color: context.mutedColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  '$assignedCount/$maxCap Clients ($percent%)',
+                  isFull
+                      ? '$assignedCount/$maxCap Clients (FULL - Max Limit)'
+                      : '$assignedCount/$maxCap Clients ($percent%)',
                   style: TextStyle(
                     color: loadColor,
                     fontSize: 11,
@@ -1222,8 +1417,8 @@ class _CoachRecordCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 6,
-                backgroundColor: AppColors.border,
-                valueColor: AlwaysStoppedAnimation(loadColor),
+                backgroundColor: context.borderLine,
+                valueColor: AlwaysStoppedAnimation<Color>(loadColor),
               ),
             ),
             const SizedBox(height: 10),
@@ -1233,7 +1428,7 @@ class _CoachRecordCard extends StatelessWidget {
               Wrap(
                 spacing: 6,
                 runSpacing: 4,
-                children: assignedMembers.take(3).map((m) {
+                children: assignedMembers.take(20).map((m) {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
@@ -1249,27 +1444,7 @@ class _CoachRecordCard extends StatelessWidget {
                       ),
                     ),
                   );
-                }).toList()
-                  ..addAll(assignedMembers.length > 3
-                      ? [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '+${assignedMembers.length - 3} more',
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        ]
-                      : []),
+                }).toList(),
               ),
             ],
           ],
@@ -1297,9 +1472,9 @@ class _DetailSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1317,8 +1492,8 @@ class _DetailSection extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.titleColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),

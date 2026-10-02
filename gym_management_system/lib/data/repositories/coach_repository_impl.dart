@@ -35,10 +35,21 @@ class CoachRepositoryImpl implements CoachRepository {
 
     if (currentUser != null && currentUser.role == UserRole.coach) {
       final specific = eligibleMembers.where((u) => u.assignedCoachId == currentUser.id).toList();
-      if (specific.isNotEmpty) return specific;
+      final maxCap = (currentUser.maxClients > 0) ? currentUser.maxClients : 20;
+
+      // STRICT CAPACITY ENFORCEMENT: Max 20 clients per coach!
+      if (specific.length > maxCap) {
+        final allowed = specific.sublist(0, maxCap);
+        final overflow = specific.sublist(maxCap);
+        for (final over in overflow) {
+          final unassigned = UserModel.fromEntity(over.copyWith(assignedCoachId: null, clearAssignedCoach: true));
+          _localCache.saveUser(unassigned);
+        }
+        return allowed;
+      }
+      return specific;
     }
-    if (eligibleMembers.isNotEmpty) return eligibleMembers;
-    return _localCache.getAllUsers().where((u) => u.role == UserRole.member && !_isDayPassMember(u.id)).toList();
+    return [];
   }
 
   @override
@@ -175,6 +186,16 @@ class CoachRepositoryImpl implements CoachRepository {
 
   @override
   Future<void> scheduleSession(TrainingSessionModel session) async {
+    final h = session.dateTime.hour;
+    final m = session.dateTime.minute;
+    if (h < 8 || h > 23 || (h == 23 && m > 0)) {
+      throw Exception('Cannot schedule session outside gym operating hours (8:00 AM – 11:00 PM).');
+    }
     _localCache.addTrainingSession(session);
+  }
+
+  @override
+  Future<void> cancelSession(String sessionId) async {
+    _localCache.cancelTrainingSession(sessionId);
   }
 }

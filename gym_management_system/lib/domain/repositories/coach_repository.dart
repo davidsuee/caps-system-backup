@@ -16,4 +16,5 @@ abstract class CoachRepository {
   Future<void> approveMealPlan(String clientUserId, {String? notes});
   Future<List<TrainingSessionModel>> getCoachSessions(String coachId);
   Future<void> scheduleSession(TrainingSessionModel session);
+  Future<void> cancelSession(String sessionId);
 }

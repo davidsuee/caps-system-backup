@@ -17,7 +17,7 @@ void main() {
       facilityRepo = FacilityRepositoryImpl(localCache: localCache);
     });
 
-    testWidgets('WelcomeScreen renders Viscious Fitness branding, amenities, and plans', (tester) async {
+    testWidgets('WelcomeScreen renders Vicious Fitness branding, amenities, and plans', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -35,33 +35,40 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verify Header branding
-      expect(find.text('VISCIOUS'), findsOneWidget);
+      // Verify Header branding and mobile navigation menu button
+      expect(find.text('VICIOUS'), findsOneWidget);
       expect(find.text('FITNESS'), findsOneWidget);
       expect(find.text('Sign In'), findsOneWidget);
+      expect(find.byTooltip('Navigation Menu'), findsOneWidget);
+
+      // Open Navigation Menu and verify separate dedicated page links
+      await tester.tap(find.byTooltip('Navigation Menu'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Features & Tech'), findsOneWidget);
+      expect(find.text('Gym Amenities & Zones'), findsOneWidget);
+      expect(find.text('Membership Plans'), findsOneWidget);
+      expect(find.text('Location & Hours'), findsOneWidget);
+
+      // Dismiss menu
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
 
       // Verify Hero Section
       expect(find.textContaining('Unleash Your Ultimate Potential'), findsOneWidget);
-      expect(find.text('Join Viscious Now'), findsOneWidget);
+      expect(find.text('Join Vicious Now'), findsOneWidget);
       expect(find.text('Portal Login'), findsOneWidget);
 
-      // Verify Smart Gym Tech Highlights
-      expect(find.text('ML Workout Recommender'), findsOneWidget);
-      expect(find.text('LP Meal Plan Optimizer'), findsOneWidget);
-      expect(find.text('Automated Coach Balancing'), findsOneWidget);
-      expect(find.text('Digital Attendance & Out'), findsOneWidget);
-
-      // Verify Amenities & Live Zones
-      expect(find.text('Cardio Deck'), findsOneWidget);
-      expect(find.text('Free Weights Area'), findsOneWidget);
-
-      // Verify Membership Tiers
-      expect(find.text('Monthly Basic'), findsOneWidget);
-      expect(find.text('Quarterly Pro'), findsOneWidget);
-      expect(find.text('Annual VIP'), findsOneWidget);
+      // Verify that embedded scrollable sections are removed from welcome screen
+      // (They are now accessible via dedicated navigation pages to eliminate scrolling)
+      expect(find.text('ML Workout Recommender'), findsNothing);
+      expect(find.text('LP Meal Plan Optimizer'), findsNothing);
+      expect(find.text('Cardio Deck'), findsNothing);
+      expect(find.text('Monthly Basic'), findsNothing);
 
       // Verify Footer
       expect(find.textContaining('Global Reciprocal Colleges'), findsOneWidget);
+      expect(find.textContaining('Operating Hours: 8:00 AM – 11:00 PM Daily'), findsOneWidget);
     });
 
     testWidgets('AiBenchmarkScreen renders ISO 25010 metrics and runs live benchmark', (tester) async {

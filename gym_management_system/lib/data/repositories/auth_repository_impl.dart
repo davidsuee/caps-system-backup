@@ -60,13 +60,13 @@ class AuthRepositoryImpl implements AuthRepository {
         e == 'sarah.admin@gym.com') {
       return 'staff@gym.com';
     }
-    if (e == 'elena@viscious.com' || e == 'elena@gym.com' || e == 'coach.elena@gym.ph') {
+    if (e == 'elena@viscious.com' || e == 'elena@vicious.com' || e == 'elena@gym.com' || e == 'coach.elena@gym.ph') {
       return 'elena.coach@gym.com';
     }
-    if (e == 'dave@viscious.com' || e == 'dave@gym.com' || e == 'coach.dave@gym.ph') {
+    if (e == 'dave@viscious.com' || e == 'dave@vicious.com' || e == 'dave@gym.com' || e == 'coach.dave@gym.ph') {
       return 'dave.coach@gym.com';
     }
-    if (e == 'member@viscious.com' || e == 'member@gym.com') {
+    if (e == 'member@viscious.com' || e == 'member@vicious.com' || e == 'member@gym.com') {
       return 'sarah.j@example.com';
     }
     return e;

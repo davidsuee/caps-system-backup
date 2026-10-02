@@ -30,9 +30,9 @@ class FirebaseAuthService {
     try {
       final prefs = LocalCacheService.prefs;
       if (prefs != null) {
-        final uid = prefs.getString('viscous_cached_auth_uid');
-        final email = prefs.getString('viscous_cached_auth_email');
-        final token = prefs.getString('viscous_cached_auth_token');
+        final uid = prefs.getString('vicious_cached_auth_uid') ?? prefs.getString('viscous_cached_auth_uid');
+        final email = prefs.getString('vicious_cached_auth_email') ?? prefs.getString('viscous_cached_auth_email');
+        final token = prefs.getString('vicious_cached_auth_token') ?? prefs.getString('viscous_cached_auth_token');
         if (uid != null && uid.isNotEmpty && email != null) {
           _lastAuthenticatedUser = AuthUserResult(
             uid: uid,
@@ -51,12 +51,15 @@ class FirebaseAuthService {
       final prefs = LocalCacheService.prefs;
       if (prefs != null) {
         if (result != null) {
-          prefs.setString('viscous_cached_auth_uid', result.uid);
-          prefs.setString('viscous_cached_auth_email', result.email);
+          prefs.setString('vicious_cached_auth_uid', result.uid);
+          prefs.setString('vicious_cached_auth_email', result.email);
           if (result.idToken != null) {
-            prefs.setString('viscous_cached_auth_token', result.idToken!);
+            prefs.setString('vicious_cached_auth_token', result.idToken!);
           }
         } else {
+          prefs.remove('vicious_cached_auth_uid');
+          prefs.remove('vicious_cached_auth_email');
+          prefs.remove('vicious_cached_auth_token');
           prefs.remove('viscous_cached_auth_uid');
           prefs.remove('viscous_cached_auth_email');
           prefs.remove('viscous_cached_auth_token');

@@ -24,7 +24,7 @@ Future<void> main() async {
 
   runApp(
     const ProviderScope(
-      child: ViscousApp(),
+      child: ViciousApp(),
     ),
   );
 }

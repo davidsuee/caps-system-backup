@@ -9,10 +9,10 @@ void main() {
     resetInitialLaunchForTest();
   });
 
-  testWidgets('Viscous Login Screen - Typing, clear icon, and no demo chips test', (WidgetTester tester) async {
+  testWidgets('Vicious Login Screen - Typing, clear icon, and no demo chips test', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: ViscousApp(),
+        child: ViciousApp(),
       ),
     );
 
@@ -26,7 +26,7 @@ void main() {
     }
 
     // 1. Verify header renders and demo role chips are REMOVED
-    expect(find.text('VISCOUS'), findsOneWidget);
+    expect(find.text('VICIOUS'), findsOneWidget);
     expect(find.text('Sign In'), findsNWidgets(2)); // Title and Button
     expect(find.text('Demo Accounts (Auto-fill by Role):'), findsNothing);
     expect(find.text('Member'), findsNothing);

@@ -6,6 +6,8 @@ import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/bmi_calculator.dart';
+import '../../dashboard/widgets/member_app_bar.dart';
+import '../../dashboard/widgets/member_bottom_nav.dart';
 import '../providers/meal_provider.dart';
 import '../widgets/meal_card.dart';
 
@@ -29,6 +31,9 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(authNotifierProvider).user;
       if (user != null) {
+        if (user.dietaryRestrictions.isNotEmpty && _selectedAllergens.isEmpty) {
+          _selectedAllergens.addAll(user.dietaryRestrictions);
+        }
         final bmr = BmiCalculator.calculateBmr(
           weightKg: user.weightKg,
           heightCm: user.heightCm,
@@ -64,13 +69,22 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     final plan = mealState.activePlan;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Nutrition & Meal Plan'),
+      appBar: MemberAppBar(
+        title: 'Nutrition & Meal Plan',
+        subtitle: 'PuLP Optimized Diet & Macros',
+        icon: Icons.restaurant_rounded,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Regenerate Plan',
-            onPressed: () => _runOptimizer(),
+          Container(
+            decoration: BoxDecoration(
+              color: context.cardColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.borderLine),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 18),
+              tooltip: 'Regenerate Plan',
+              onPressed: () => _runOptimizer(),
+            ),
           ),
         ],
       ),
@@ -89,9 +103,16 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: context.cardColor,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,8 +126,8 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                     const SizedBox(width: 10),
                                     Text(
                                       plan != null ? '${plan.totalCalories.toInt()} kcal / day' : '${_targetCalories.toInt()} kcal Target',
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        color: context.titleColor,
                                         fontSize: 20,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -120,7 +141,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    plan?.isCoachApproved == true ? '✓ Coach Approved' : 'Balanced Diet',
+                                    plan?.isCoachApproved == true ? 'âœ“ Coach Approved' : 'Balanced Diet',
                                     style: TextStyle(
                                       color: plan?.isCoachApproved == true ? AppColors.primary : AppColors.accent,
                                       fontSize: 11,
@@ -133,7 +154,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                             const SizedBox(height: 12),
                             Text(
                               plan?.solverMessage ?? 'Optimized macronutrient balance tailored for ${user.fitnessGoal}.',
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                              style: TextStyle(color: context.subtitleColor, fontSize: 13, height: 1.4),
                             ),
                             const SizedBox(height: 16),
                             Row(
@@ -144,7 +165,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                 const SizedBox(width: 8),
                                 _MacroBadge('Fats', '${plan?.totalFat.toInt() ?? 60}g', AppColors.accent),
                                 const SizedBox(width: 8),
-                                _MacroBadge('Est. Cost', '₱${plan?.totalCost.toStringAsFixed(0) ?? _budgetLimit.toInt()}', Colors.purpleAccent),
+                                _MacroBadge('Est. Cost', 'â‚±${plan?.totalCost.toStringAsFixed(0) ?? _budgetLimit.toInt()}', Colors.purpleAccent),
                               ],
                             ),
                           ],
@@ -153,41 +174,46 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                       const SizedBox(height: 20),
 
                       // Allergen & Dietary Restriction Chips
-                      const Text(
+                      Text(
                         'Exclude Allergens / Dietary Preferences',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: context.titleColor, fontSize: 15, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
+                        runSpacing: 8,
                         children: _availableAllergens.map((allergen) {
                           final isSelected = _selectedAllergens.contains(allergen);
-                          return FilterChip(
-                            label: Text(allergen),
-                            selected: isSelected,
-                            selectedColor: AppColors.error.withValues(alpha: 0.25),
-                            checkmarkColor: AppColors.error,
-                            labelStyle: TextStyle(
-                              color: isSelected ? AppColors.error : AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            backgroundColor: AppColors.surface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(
-                                color: isSelected ? AppColors.error : AppColors.border,
+                          return MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: FilterChip(
+                              label: Text(allergen),
+                              selected: isSelected,
+                              selectedColor: AppColors.primary.withValues(alpha: 0.20),
+                              checkmarkColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                color: isSelected ? AppColors.primary : context.subtitleColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
                               ),
+                              backgroundColor: context.elevatedSurface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: isSelected ? AppColors.primary : context.borderLine,
+                                  width: isSelected ? 1.5 : 1.0,
+                                ),
+                              ),
+                              onSelected: (selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _selectedAllergens.add(allergen);
+                                  } else {
+                                    _selectedAllergens.remove(allergen);
+                                  }
+                                });
+                              },
                             ),
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedAllergens.add(allergen);
-                                } else {
-                                  _selectedAllergens.remove(allergen);
-                                }
-                              });
-                            },
                           );
                         }).toList(),
                       ),
@@ -197,7 +223,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Adjust Daily Calorie Target', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('Adjust Daily Calorie Target', style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600)),
                           Text('${_targetCalories.toInt()} kcal', style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w700)),
                         ],
                       ),
@@ -207,7 +233,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                         max: 3800,
                         divisions: 24,
                         activeColor: AppColors.accent,
-                        inactiveColor: AppColors.surfaceLight,
+                        inactiveColor: context.elevatedSurface,
                         onChanged: (v) => setState(() => _targetCalories = v),
                       ),
 
@@ -224,27 +250,81 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Daily Meal Breakdown',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: context.titleColor,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             Text(
                               '${plan.meals.length} Meals Scheduled',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              style: TextStyle(color: context.mutedColor, fontSize: 12),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        ...plan.meals.map((slot) => MealSlotCard(slot: slot)),
+
+                        // Dietary Safeguard & Allergy Substitution Notification Banner
+                        if (_selectedAllergens.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 14),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.40)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.shield_rounded, color: AppColors.primary, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Allergy Safeguards Active: ${_selectedAllergens.join(', ')} Excluded',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _selectedAllergens.contains('Seafood')
+                                            ? 'All fish, tuna, salmon, bangus, and shellfish are excluded. Safe high-protein alternatives (Lean Chicken Tinola, Tofu, Lean Sirloin) are active in each meal breakdown below.'
+                                            : 'Excluded ingredients have been swapped out. Check each meal slot below for safe alternatives matched to your daily macro targets.',
+                                        style: TextStyle(color: context.subtitleColor, fontSize: 11, height: 1.35),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        ...plan.meals.map((slot) => MealSlotCard(
+                          slot: slot,
+                          excludedAllergens: _selectedAllergens,
+                        )),
                       ],
                       const SizedBox(height: 20),
                     ],
                   ),
                 ),
+      bottomNavigationBar: const MemberBottomNav(currentIndex: 2),
     );
   }
 
@@ -294,7 +374,7 @@ class _MacroBadge extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               value,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800),
+              style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w800),
             ),
           ],
         ),

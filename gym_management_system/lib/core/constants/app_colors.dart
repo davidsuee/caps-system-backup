@@ -25,3 +25,16 @@ class AppColors {
   static const Color textSecondary = Color(0xFF9EABB8);
   static const Color textMuted = Color(0xFF677381);
 }
+
+extension ThemeColors on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  Color get bg => isDark ? AppColors.background : const Color(0xFFF8FAFC);
+  Color get surfaceBg => isDark ? AppColors.surface : Colors.white;
+  Color get elevatedSurface => isDark ? AppColors.surfaceLight : const Color(0xFFF1F5F9);
+  Color get cardColor => isDark ? AppColors.cardBg : Colors.white;
+  Color get borderLine => isDark ? AppColors.border : const Color(0xFFE2E8F0);
+  Color get titleColor => isDark ? AppColors.textPrimary : const Color(0xFF0F172A);
+  Color get subtitleColor => isDark ? AppColors.textSecondary : const Color(0xFF475569);
+  Color get mutedColor => isDark ? AppColors.textMuted : const Color(0xFF94A3B8);
+}
+

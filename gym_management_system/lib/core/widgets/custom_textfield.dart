@@ -47,8 +47,8 @@ class CustomTextField extends StatelessWidget {
             onTap: () => focusNode?.requestFocus(),
             child: Text(
               label!,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.subtitleColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -71,10 +71,10 @@ class CustomTextField extends StatelessWidget {
           mouseCursor: SystemMouseCursors.text,
           cursorColor: AppColors.primary,
           enableInteractiveSelection: true,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+          style: TextStyle(color: context.titleColor, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.textMuted, size: 20) : null,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: context.mutedColor, size: 20) : null,
             suffixIcon: suffixIcon,
           ),
         ),

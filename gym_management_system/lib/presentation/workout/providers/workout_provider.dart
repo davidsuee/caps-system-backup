@@ -147,6 +147,28 @@ class WorkoutNotifier extends Notifier<WorkoutState> {
     state = state.copyWith(activePlan: updatedPlan);
     _repo.saveWorkoutPlan(updatedPlan);
   }
+
+  void swapExercise(ExerciseEntity original, ExerciseEntity alternative) {
+    final plan = state.activePlan;
+    if (plan == null) return;
+
+    final updatedExercises = plan.exercises.map((ex) {
+      if (ex.name == original.name && (original.dayTag.isEmpty || ex.dayTag == original.dayTag)) {
+        return alternative.copyWith(
+          dayTag: ex.dayTag.isNotEmpty ? ex.dayTag : alternative.dayTag,
+          isCompleted: ex.isCompleted,
+        );
+      }
+      return ex;
+    }).toList();
+
+    final updatedPlan = plan.copyWith(
+      exercises: updatedExercises,
+    );
+
+    state = state.copyWith(activePlan: updatedPlan);
+    _repo.saveWorkoutPlan(updatedPlan);
+  }
 }
 
 final workoutNotifierProvider = NotifierProvider<WorkoutNotifier, WorkoutState>(WorkoutNotifier.new);

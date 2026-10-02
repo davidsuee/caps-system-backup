@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../../models/user_model.dart';
 import '../../models/workout_plan_model.dart';
 import '../../models/meal_plan_model.dart';
 import '../../models/membership_model.dart';
 import '../../models/progress_log_model.dart';
 import '../../models/facility_model.dart';
+import '../../models/walk_in_record_model.dart';
 import '../../../domain/entities/user_entity.dart';
 
 class LocalCacheService {
@@ -30,7 +32,7 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
 
-      final curUserJson = prefs.getString('viscous_cached_current_user');
+      final curUserJson = prefs.getString('vicious_cached_current_user') ?? prefs.getString('viscous_cached_current_user');
       if (curUserJson != null && curUserJson.isNotEmpty) {
         final decoded = jsonDecode(curUserJson);
         if (decoded is Map) {
@@ -39,7 +41,7 @@ class LocalCacheService {
         }
       }
 
-      final memsJson = prefs.getString('viscous_cached_memberships');
+      final memsJson = prefs.getString('vicious_cached_memberships') ?? prefs.getString('viscous_cached_memberships');
       if (memsJson != null && memsJson.isNotEmpty) {
         final decoded = jsonDecode(memsJson);
         if (decoded is List) {
@@ -55,14 +57,17 @@ class LocalCacheService {
         }
       }
 
-      final usersJson = prefs.getString('viscous_cached_users');
+      final usersJson = prefs.getString('vicious_cached_users') ?? prefs.getString('viscous_cached_users');
       if (usersJson != null && usersJson.isNotEmpty) {
         final decodedUsers = jsonDecode(usersJson);
         if (decodedUsers is List) {
           for (final item in decodedUsers) {
             if (item is Map) {
               final map = Map<String, dynamic>.from(item);
-              final u = UserModel.fromJson(map, map['id']?.toString() ?? '');
+              var u = UserModel.fromJson(map, map['id']?.toString() ?? '');
+              if (u.role == UserRole.coach && u.maxClients < 20) {
+                u = UserModel.fromEntity(u.copyWith(maxClients: 20));
+              }
               if (u.email.isNotEmpty) {
                 _users[u.email.toLowerCase().trim()] = u;
               }
@@ -71,10 +76,11 @@ class LocalCacheService {
               }
             }
           }
+          _enforceCoachCapacities();
         }
       }
 
-      final attJson = prefs.getString('viscous_cached_attendance');
+      final attJson = prefs.getString('vicious_cached_attendance') ?? prefs.getString('viscous_cached_attendance');
       if (attJson != null && attJson.isNotEmpty) {
         final decodedAtt = jsonDecode(attJson);
         if (decodedAtt is List) {
@@ -89,7 +95,25 @@ class LocalCacheService {
         }
       }
 
-      final logsJson = prefs.getString('viscous_cached_progress_logs');
+      final completedSessions = prefs.getStringList('vicious_completed_attendance_sessions');
+      if (completedSessions != null) {
+        _completedAttendanceSessionIds.addAll(completedSessions);
+      }
+
+      final walkInsJson = prefs.getString('vicious_cached_walk_ins');
+      if (walkInsJson != null && walkInsJson.isNotEmpty) {
+        final decodedWalkIns = jsonDecode(walkInsJson);
+        if (decodedWalkIns is List) {
+          _walkInRecords.clear();
+          for (final item in decodedWalkIns) {
+            if (item is Map) {
+              _walkInRecords.add(WalkInRecordModel.fromJson(Map<String, dynamic>.from(item)));
+            }
+          }
+        }
+      }
+
+      final logsJson = prefs.getString('vicious_cached_progress_logs') ?? prefs.getString('viscous_cached_progress_logs');
       if (logsJson != null && logsJson.isNotEmpty) {
         final decodedLogs = jsonDecode(logsJson);
         if (decodedLogs is List) {
@@ -104,7 +128,7 @@ class LocalCacheService {
         }
       }
 
-      final workoutsJson = prefs.getString('viscous_cached_workouts');
+      final workoutsJson = prefs.getString('vicious_cached_workouts') ?? prefs.getString('viscous_cached_workouts');
       if (workoutsJson != null && workoutsJson.isNotEmpty) {
         final decodedWorkouts = jsonDecode(workoutsJson);
         if (decodedWorkouts is List) {
@@ -120,7 +144,7 @@ class LocalCacheService {
         }
       }
 
-      final mealsJson = prefs.getString('viscous_cached_meals');
+      final mealsJson = prefs.getString('vicious_cached_meals') ?? prefs.getString('viscous_cached_meals');
       if (mealsJson != null && mealsJson.isNotEmpty) {
         final decodedMeals = jsonDecode(mealsJson);
         if (decodedMeals is List) {
@@ -135,6 +159,20 @@ class LocalCacheService {
           }
         }
       }
+
+      final notifsJson = prefs.getString('vicious_cached_notifications');
+      if (notifsJson != null && notifsJson.isNotEmpty) {
+        final decodedNotifs = jsonDecode(notifsJson);
+        if (decodedNotifs is List) {
+          _notifications.clear();
+          for (final item in decodedNotifs) {
+            if (item is Map) {
+              final map = Map<String, dynamic>.from(item);
+              _notifications.add(AppNotificationModel.fromJson(map));
+            }
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[LocalCacheService] Error loading from prefs: $e');
     }
@@ -145,9 +183,9 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       if (_currentUser != null) {
-        prefs.setString('viscous_cached_current_user', jsonEncode(_currentUser!.toJson()));
+        prefs.setString('vicious_cached_current_user', jsonEncode(_currentUser!.toJson()));
       } else {
-        prefs.remove('viscous_cached_current_user');
+        prefs.remove('vicious_cached_current_user');
       }
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting current user: $e');
@@ -159,7 +197,7 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       final mapList = _memberships.values.map((m) => m.toJson()).toList();
-      prefs.setString('viscous_cached_memberships', jsonEncode(mapList));
+      prefs.setString('vicious_cached_memberships', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting memberships: $e');
     }
@@ -171,7 +209,7 @@ class LocalCacheService {
       if (prefs == null) return;
       final uniqueUsers = _users.values.toSet().toList();
       final mapList = uniqueUsers.map((u) => u.toJson()).toList();
-      prefs.setString('viscous_cached_users', jsonEncode(mapList));
+      prefs.setString('vicious_cached_users', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting users: $e');
     }
@@ -182,7 +220,7 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       final mapList = _attendance.map((a) => a.toJson()).toList();
-      prefs.setString('viscous_cached_attendance', jsonEncode(mapList));
+      prefs.setString('vicious_cached_attendance', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting attendance: $e');
     }
@@ -193,7 +231,7 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       final mapList = _progressLogs.map((p) => p.toJson()).toList();
-      prefs.setString('viscous_cached_progress_logs', jsonEncode(mapList));
+      prefs.setString('vicious_cached_progress_logs', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting progress logs: $e');
     }
@@ -204,7 +242,7 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       final mapList = _activeWorkouts.values.map((w) => w.toJson()).toList();
-      prefs.setString('viscous_cached_workouts', jsonEncode(mapList));
+      prefs.setString('vicious_cached_workouts', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting workouts: $e');
     }
@@ -215,9 +253,20 @@ class LocalCacheService {
       final prefs = _prefs;
       if (prefs == null) return;
       final mapList = _activeMeals.values.map((m) => m.toJson()).toList();
-      prefs.setString('viscous_cached_meals', jsonEncode(mapList));
+      prefs.setString('vicious_cached_meals', jsonEncode(mapList));
     } catch (e) {
       debugPrint('[LocalCacheService] Error persisting meals: $e');
+    }
+  }
+
+  void _persistNotifications() {
+    try {
+      final prefs = _prefs;
+      if (prefs == null) return;
+      final mapList = _notifications.map((n) => n.toJson()).toList();
+      prefs.setString('vicious_cached_notifications', jsonEncode(mapList));
+    } catch (e) {
+      debugPrint('[LocalCacheService] Error persisting notifications: $e');
     }
   }
 
@@ -233,6 +282,7 @@ class LocalCacheService {
   final Map<String, FacilityModel> _facilities = {};
   final Map<String, EquipmentModel> _equipment = {};
   final Set<String> _deletedEquipmentIds = {};
+  final List<WalkInRecordModel> _walkInRecords = [];
 
   LocalCacheService._internal() {
     _seedInitialData();
@@ -245,7 +295,7 @@ class LocalCacheService {
       email: 'coach@gym.com',
       role: UserRole.coach,
       specialization: 'Strength & Conditioning',
-      maxClients: 6,
+      maxClients: 20,
       age: 32,
       heightCm: 182.0,
       weightKg: 85.0,
@@ -262,7 +312,7 @@ class LocalCacheService {
       email: 'elena.coach@gym.com',
       role: UserRole.coach,
       specialization: 'Fat Loss & Functional HIIT',
-      maxClients: 6,
+      maxClients: 20,
       age: 28,
       heightCm: 165.0,
       weightKg: 55.0,
@@ -279,7 +329,7 @@ class LocalCacheService {
       email: 'dave.coach@gym.com',
       role: UserRole.coach,
       specialization: 'Bodybuilding & Hypertrophy',
-      maxClients: 6,
+      maxClients: 20,
       age: 35,
       heightCm: 188.0,
       weightKg: 98.0,
@@ -366,7 +416,7 @@ class LocalCacheService {
       capacity: 30,
       currentOccupancy: 12,
       status: 'open',
-      operatingHours: '6:00 AM - 10:00 PM',
+      operatingHours: '8:00 AM - 11:00 PM',
       iconName: 'directions_run',
     );
     final fac2 = FacilityModel(
@@ -376,7 +426,7 @@ class LocalCacheService {
       capacity: 40,
       currentOccupancy: 26,
       status: 'open',
-      operatingHours: '6:00 AM - 10:00 PM',
+      operatingHours: '8:00 AM - 11:00 PM',
       iconName: 'fitness_center',
     );
     final fac3 = FacilityModel(
@@ -386,7 +436,7 @@ class LocalCacheService {
       capacity: 25,
       currentOccupancy: 8,
       status: 'open',
-      operatingHours: '7:00 AM - 9:00 PM',
+      operatingHours: '8:00 AM - 11:00 PM',
       iconName: 'sports_gymnastics',
     );
     final fac4 = FacilityModel(
@@ -396,7 +446,7 @@ class LocalCacheService {
       capacity: 20,
       currentOccupancy: 5,
       status: 'open',
-      operatingHours: '6:00 AM - 10:00 PM',
+      operatingHours: '8:00 AM - 11:00 PM',
       iconName: 'sports_mma',
     );
 
@@ -468,6 +518,44 @@ class LocalCacheService {
     _equipment[eq5.id] = eq5;
     _equipment[eq6.id] = eq6;
     _ensureNewEquipmentSeeded();
+
+    // Seed Sample Walk-In / Day Pass Records for today (Admin-Only Front Desk Registry)
+    final now = DateTime.now();
+    final walkIn1 = WalkInRecordModel(
+      id: 'walkin_seed_01',
+      guestName: 'Carlos Mendoza',
+      contactNumber: '0917-555-0192',
+      amountPaid: 150.0,
+      paymentMethod: 'Cash at Counter',
+      checkInTime: DateTime(now.year, now.month, now.day, 9, 30),
+      checkOutTime: DateTime(now.year, now.month, now.day, 11, 15),
+      notes: 'Locker 05 • Day Pass Guest',
+      recordedBy: 'Admin Desk',
+    );
+    final walkIn2 = WalkInRecordModel(
+      id: 'walkin_seed_02',
+      guestName: 'Jessica Alcantara',
+      contactNumber: '0928-888-4321',
+      amountPaid: 150.0,
+      paymentMethod: 'Cash at Counter',
+      checkInTime: DateTime(now.year, now.month, now.day, 14, 0),
+      notes: 'Locker 14 • Day Pass Guest (Active in Gym)',
+      recordedBy: 'Admin Desk',
+    );
+    _walkInRecords.add(walkIn1);
+    _walkInRecords.add(walkIn2);
+
+    _attendance.add(AttendanceModel(
+      id: 'att_walkin_seed_02',
+      userId: 'walkin_seed_02',
+      checkInTime: walkIn2.checkInTime,
+      guestName: walkIn2.guestName,
+      isWalkIn: true,
+      amountPaid: 150.0,
+      contactNumber: walkIn2.contactNumber,
+      paymentMethod: walkIn2.paymentMethod,
+      notes: walkIn2.notes,
+    ));
   }
 
   UserModel? getCurrentUser() => _currentUser;
@@ -477,7 +565,13 @@ class LocalCacheService {
   }
 
   UserModel? getUserByEmail(String email) => _users[email.toLowerCase().trim()];
-  UserModel? getUserById(String id) => _users[id] ?? _users.values.where((u) => u.id == id).firstOrNull;
+  UserModel? getUserById(String id) {
+    final u = _users[id] ?? _users.values.where((u) => u.id == id).firstOrNull;
+    if (u != null && u.role == UserRole.coach && u.maxClients < 20) {
+      return UserModel.fromEntity(u.copyWith(maxClients: 20));
+    }
+    return u;
+  }
   List<UserModel> getAllUsers() {
     final Map<String, UserModel> map = {};
     for (final u in _users.values) {
@@ -487,7 +581,35 @@ class LocalCacheService {
     }
     return map.values.toList();
   }
-  List<UserModel> getUsersByRole(UserRole role) => getAllUsers().where((u) => u.role == role).toList();
+  List<UserModel> getUsersByRole(UserRole role) {
+    final list = getAllUsers().where((u) => u.role == role).toList();
+    if (role == UserRole.coach) {
+      return list.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
+    }
+    return list;
+  }
+
+  void _enforceCoachCapacities() {
+    final members = getAllUsers().where((u) => u.role == UserRole.member).toList();
+    final Map<String, int> counts = {};
+
+    for (final m in members) {
+      if (m.assignedCoachId != null && m.assignedCoachId!.isNotEmpty) {
+        final cid = m.assignedCoachId!;
+        final coach = getUserById(cid);
+        final maxCap = (coach != null && coach.maxClients > 0) ? coach.maxClients : 20;
+        final current = counts[cid] ?? 0;
+        if (current >= maxCap) {
+          final unassigned = UserModel.fromEntity(m.copyWith(assignedCoachId: null, clearAssignedCoach: true));
+          _users[m.email.toLowerCase().trim()] = unassigned;
+          _users[m.id] = unassigned;
+        } else {
+          counts[cid] = current + 1;
+        }
+      }
+    }
+  }
+
   void saveUser(UserModel user) {
     _users[user.email.toLowerCase().trim()] = user;
     _users[user.id] = user;
@@ -540,15 +662,94 @@ class LocalCacheService {
     _persistMemberships();
   }
 
-  List<AttendanceModel> getAttendance(String userId) => _attendance.where((a) => a.userId == userId).toList();
-  List<AttendanceModel> getAllAttendance() => List.unmodifiable(_attendance);
+  bool autoCheckOutClosedSessions([DateTime? currentTime]) {
+    final now = currentTime ?? DateTime.now();
+    bool changed = false;
+    for (int i = 0; i < _attendance.length; i++) {
+      final a = _attendance[i];
+      if (a.checkOutTime == null) {
+        final closingTime = DateTime(
+          a.checkInTime.year,
+          a.checkInTime.month,
+          a.checkInTime.day,
+          23, // 11:00 PM closing
+          0,
+        );
+        if (now.isAfter(closingTime) ||
+            now.isAtSameMomentAs(closingTime) ||
+            a.checkInTime.isAfter(closingTime)) {
+          final outTime = a.checkInTime.isAfter(closingTime) ? a.checkInTime : closingTime;
+          _attendance[i] = AttendanceModel(
+            id: a.id,
+            userId: a.userId,
+            checkInTime: a.checkInTime,
+            checkOutTime: outTime,
+            guestName: a.guestName,
+            isWalkIn: a.isWalkIn,
+            amountPaid: a.amountPaid,
+            contactNumber: a.contactNumber,
+            paymentMethod: a.paymentMethod,
+            notes: a.notes,
+          );
+          changed = true;
+        }
+      }
+    }
+    for (int i = 0; i < _walkInRecords.length; i++) {
+      final w = _walkInRecords[i];
+      if (w.checkOutTime == null) {
+        final closingTime = DateTime(
+          w.checkInTime.year,
+          w.checkInTime.month,
+          w.checkInTime.day,
+          23,
+          0,
+        );
+        if (now.isAfter(closingTime) ||
+            now.isAtSameMomentAs(closingTime) ||
+            w.checkInTime.isAfter(closingTime)) {
+          final outTime = w.checkInTime.isAfter(closingTime) ? w.checkInTime : closingTime;
+          _walkInRecords[i] = w.copyWith(checkOutTime: outTime);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      _persistAttendance();
+      _persistWalkIns();
+    }
+    return changed;
+  }
+
+  List<AttendanceModel> getAttendance(String userId) {
+    autoCheckOutClosedSessions();
+    return _attendance.where((a) => a.userId == userId).toList();
+  }
+
+  List<AttendanceModel> getAllAttendance() {
+    autoCheckOutClosedSessions();
+    return List.unmodifiable(_attendance);
+  }
+
+  List<AttendanceModel> getTodayAttendance() {
+    autoCheckOutClosedSessions();
+    final now = DateTime.now();
+    return _attendance.where((a) =>
+        a.checkInTime.year == now.year &&
+        a.checkInTime.month == now.month &&
+        a.checkInTime.day == now.day).toList();
+  }
+
   void addAttendance(AttendanceModel a) {
     _attendance.removeWhere((item) => item.id == a.id);
     _attendance.insert(0, a);
     _persistAttendance();
   }
+
   void logAttendance(AttendanceModel a) => addAttendance(a);
+
   AttendanceModel? getActiveAttendance(String userId) {
+    autoCheckOutClosedSessions();
     for (final a in _attendance) {
       if (a.userId == userId && a.checkOutTime == null) return a;
     }
@@ -562,6 +763,98 @@ class LocalCacheService {
       _attendance.insert(0, updated);
     }
     _persistAttendance();
+  }
+
+  final Set<String> _completedAttendanceSessionIds = {};
+
+  bool isAttendanceSessionCompleted(String? attendanceId) {
+    if (attendanceId == null || attendanceId.isEmpty) return false;
+    if (_completedAttendanceSessionIds.contains(attendanceId)) return true;
+    final cached = _prefs?.getStringList('vicious_completed_attendance_sessions') ?? [];
+    return cached.contains(attendanceId);
+  }
+
+  void markAttendanceSessionCompleted(String? attendanceId) {
+    if (attendanceId == null || attendanceId.isEmpty) return;
+    _completedAttendanceSessionIds.add(attendanceId);
+    final cached = _prefs?.getStringList('vicious_completed_attendance_sessions') ?? [];
+    if (!cached.contains(attendanceId)) {
+      final updated = List<String>.from(cached)..add(attendanceId);
+      _prefs?.setStringList('vicious_completed_attendance_sessions', updated);
+    }
+  }
+
+  // Walk-In / Day Pass Registry (Admin-Only, No Account Needed)
+  List<WalkInRecordModel> getAllWalkInRecords() {
+    autoCheckOutClosedSessions();
+    return List.unmodifiable(_walkInRecords);
+  }
+
+  List<WalkInRecordModel> getTodayWalkInRecords() {
+    autoCheckOutClosedSessions();
+    final now = DateTime.now();
+    return _walkInRecords.where((w) =>
+        w.checkInTime.year == now.year &&
+        w.checkInTime.month == now.month &&
+        w.checkInTime.day == now.day).toList();
+  }
+
+  List<WalkInRecordModel> getActiveWalkInRecords() {
+    autoCheckOutClosedSessions();
+    return _walkInRecords.where((w) => w.isActive).toList();
+  }
+
+  void logWalkInRecord(WalkInRecordModel record) {
+    _walkInRecords.removeWhere((item) => item.id == record.id);
+    _walkInRecords.insert(0, record);
+
+    final attendanceEntry = AttendanceModel(
+      id: 'att_${record.id}',
+      userId: record.id,
+      checkInTime: record.checkInTime,
+      checkOutTime: record.checkOutTime,
+      guestName: record.guestName,
+      isWalkIn: true,
+      amountPaid: record.amountPaid,
+      contactNumber: record.contactNumber,
+      paymentMethod: record.paymentMethod,
+      notes: record.notes,
+    );
+    addAttendance(attendanceEntry);
+    _persistWalkIns();
+  }
+
+  void checkOutWalkInRecord(String id, [DateTime? time]) {
+    final checkOutTime = time ?? DateTime.now();
+    final index = _walkInRecords.indexWhere((w) => w.id == id);
+    if (index != -1) {
+      _walkInRecords[index] = _walkInRecords[index].copyWith(checkOutTime: checkOutTime);
+      _persistWalkIns();
+    }
+    final attIndex = _attendance.indexWhere((a) => a.id == 'att_$id' || a.userId == id);
+    if (attIndex != -1) {
+      final old = _attendance[attIndex];
+      _attendance[attIndex] = AttendanceModel(
+        id: old.id,
+        userId: old.userId,
+        checkInTime: old.checkInTime,
+        checkOutTime: checkOutTime,
+        guestName: old.guestName,
+        isWalkIn: true,
+        amountPaid: old.amountPaid,
+        contactNumber: old.contactNumber,
+        paymentMethod: old.paymentMethod,
+        notes: old.notes,
+      );
+      _persistAttendance();
+    }
+  }
+
+  void _persistWalkIns() {
+    try {
+      final list = _walkInRecords.map((w) => w.toJson()).toList();
+      _prefs?.setString('vicious_cached_walk_ins', jsonEncode(list));
+    } catch (_) {}
   }
 
   void saveAttendanceList(List<AttendanceModel> list) {
@@ -581,6 +874,7 @@ class LocalCacheService {
     merged.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
     _attendance.clear();
     _attendance.addAll(merged);
+    autoCheckOutClosedSessions();
     _persistAttendance();
   }
 
@@ -623,8 +917,15 @@ class LocalCacheService {
 
   List<AppNotificationModel> getNotifications(String userId) =>
       _notifications.where((n) => n.userId == userId).toList();
-  void addNotification(AppNotificationModel n) => _notifications.insert(0, n);
-  void dismissNotification(String id) => _notifications.removeWhere((n) => n.id == id);
+  void addNotification(AppNotificationModel n) {
+    _notifications.removeWhere((existing) => existing.id == n.id);
+    _notifications.insert(0, n);
+    _persistNotifications();
+  }
+  void dismissNotification(String id) {
+    _notifications.removeWhere((n) => n.id == id);
+    _persistNotifications();
+  }
 
   List<TrainingSessionModel> getCoachSessions(String coachId) =>
       _trainingSessions.where((s) => s.coachId == coachId).toList();
@@ -632,6 +933,8 @@ class LocalCacheService {
       _trainingSessions.where((s) => s.memberId == memberId).toList();
   List<TrainingSessionModel> getAllSessions() => List.unmodifiable(_trainingSessions);
   void addTrainingSession(TrainingSessionModel s) => _trainingSessions.insert(0, s);
+  void cancelTrainingSession(String sessionId) =>
+      _trainingSessions.removeWhere((s) => s.id == sessionId);
 
   void approveWorkoutPlan(String userId, [String? notes]) {
     final existing = _activeWorkouts[userId];
@@ -849,6 +1152,26 @@ class AppNotificationModel {
     required this.createdAt,
     this.isRead = false,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'userId': userId,
+    'title': title,
+    'message': message,
+    'createdAt': createdAt.toIso8601String(),
+    'isRead': isRead,
+  };
+
+  factory AppNotificationModel.fromJson(Map<String, dynamic> json) => AppNotificationModel(
+    id: json['id'] as String? ?? const Uuid().v4(),
+    userId: json['userId'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    message: json['message'] as String? ?? '',
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+        : DateTime.now(),
+    isRead: json['isRead'] as bool? ?? false,
+  );
 }
 
 class TrainingSessionModel {

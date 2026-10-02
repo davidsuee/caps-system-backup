@@ -3,667 +3,644 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../../core/widgets/custom_button.dart';
-import '../../admin/providers/facility_provider.dart';
+import '../../../core/theme/theme_provider.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
-class WelcomeScreen extends ConsumerWidget {
+class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final facilityState = ref.watch(facilityNotifierProvider);
-    final facilities = facilityState.facilities;
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
+    final now = DateTime.now();
+    final hour = now.hour;
+    final isOpen = hour >= 8 && hour < 23;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.background : const Color(0xFFF8FAFC),
+      appBar: _buildAppBar(context, isDark),
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
-          // Dynamic App Bar
-          SliverAppBar(
-            backgroundColor: AppColors.surface,
-            floating: true,
-            pinned: true,
-            elevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 22),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Full-height expanded Hero section ("sakop yung page")
+                Expanded(
+                  child: _buildHeroSection(context),
+                ),
+
+                // Sleek Footer with Location, Operating Hours & Live Status
+                _buildFooter(context, isDark, isOpen),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- APP BAR WITH NAVIGATION & SIGN IN ---
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDark) {
+    return AppBar(
+      backgroundColor: isDark ? AppColors.surface : Colors.white,
+      elevation: isDark ? 2 : 1,
+      shadowColor: Colors.black.withValues(alpha: isDark ? 0.5 : 0.08),
+      titleSpacing: 0,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Center(
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (_scrollController.hasClients) {
+                  _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+                }
+              },
+              child: Container(
+                width: 32,
+                height: 32,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/vicious_logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.fitness_center_rounded, color: Colors.black, size: 18),
                 ),
               ),
             ),
-            title: const Row(
+          ),
+        ),
+      ),
+      title: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+            }
+          },
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'VISCIOUS',
+                  'VICIOUS',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
+                    letterSpacing: 1.2,
                   ),
                 ),
-                SizedBox(width: 6),
-                Text(
+                const SizedBox(width: 4),
+                const Text(
                   'FITNESS',
                   style: TextStyle(
                     color: AppColors.primary,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton.icon(
-                onPressed: () => context.push(AppRoutes.login),
-                icon: const Icon(Icons.login_rounded, size: 16, color: AppColors.primary),
-                label: const Text(
-                  'Sign In',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-
-          // Main Landing Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // --- HERO SECTION ---
-                  _buildHeroSection(context),
-                  const SizedBox(height: 32),
-
-                  // --- AI & OPTIMIZATION HIGHLIGHTS ---
-                  _buildSectionHeader('Smart Gym Technology', 'Powered by Machine Learning & Linear Optimization'),
-                  const SizedBox(height: 14),
-                  _buildTechHighlights(),
-                  const SizedBox(height: 32),
-
-                  // --- AMENITIES & LIVE ZONES ---
-                  _buildSectionHeader('Gym Amenities & Zones', 'Real-time crowd occupancy & training spaces'),
-                  const SizedBox(height: 14),
-                  _buildAmenitiesSection(facilities),
-                  const SizedBox(height: 32),
-
-                  // --- MEMBERSHIP PLANS ---
-                  _buildSectionHeader('Membership Plans', 'Flexible access tailored for every fitness milestone'),
-                  const SizedBox(height: 14),
-                  _buildMembershipTiers(context),
-                  const SizedBox(height: 32),
-
-                  // --- FOOTER & CONTACT ---
-                  _buildFooter(context),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, String subtitle) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.3,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- HERO SECTION ---
-  Widget _buildHeroSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.surfaceLight,
-            AppColors.surface,
-            AppColors.primary.withValues(alpha: 0.12),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.bolt_rounded, color: AppColors.primary, size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'NEXT-GEN FITNESS PLATFORM',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 11,
-                    letterSpacing: 1.0,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Unleash Your Ultimate Potential at Viscious Fitness',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'The first intelligent gym management platform combining Machine Learning workout recommendations, Linear Programming nutrition planning, and automated coach workload balancing.',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: CustomButton(
-                  text: 'Join Viscious Now',
-                  icon: Icons.person_add_rounded,
-                  onPressed: () => context.push(AppRoutes.register),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: CustomButton(
-                  text: 'Portal Login',
-                  icon: Icons.login_rounded,
-                  isOutlined: true,
-                  onPressed: () => context.push(AppRoutes.login),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
-    );
-  }
-
-  // --- SMART TECH HIGHLIGHTS ---
-  Widget _buildTechHighlights() {
-    final highlights = [
-      {
-        'icon': Icons.psychology_rounded,
-        'color': AppColors.primary,
-        'title': 'ML Workout Recommender',
-        'desc': 'Random Forest algorithm selects exercises tailored to your BMI, fitness goals, and strength level.',
-      },
-      {
-        'icon': Icons.restaurant_menu_rounded,
-        'color': AppColors.accentCyan,
-        'title': 'LP Meal Plan Optimizer',
-        'desc': 'Linear Programming solver constructs balanced meal combinations meeting exact calorie and macro targets.',
-      },
-      {
-        'icon': Icons.swap_horiz_rounded,
-        'color': AppColors.accent,
-        'title': 'Automated Coach Balancing',
-        'desc': 'Intelligent allocation matches members to certified trainers based on discipline and capacity.',
-      },
-      {
-        'icon': Icons.qr_code_scanner_rounded,
-        'color': Colors.purpleAccent,
-        'title': 'Digital Attendance & Out',
-        'desc': 'Complete TimeIn and TimeOut check-out lifecycle with live active member session tracking.',
-      },
-    ];
-
-    return Column(
-      children: highlights.map((h) {
-        final color = h['color'] as Color;
-        final icon = h['icon'] as IconData;
-        final title = h['title'] as String;
-        final desc = h['desc'] as String;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+      actions: [
+        // Desktop Navigation Links (Separate Dedicated Pages)
+        if (MediaQuery.of(context).size.width >= 1150) ...[
+          _buildHeaderNavLink(
+            title: 'Features',
+            icon: Icons.bolt_rounded,
+            onTap: () => context.push(AppRoutes.publicFeatures),
+            isDark: isDark,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          _buildHeaderNavLink(
+            title: 'Amenities',
+            icon: Icons.fitness_center_rounded,
+            onTap: () => context.push(AppRoutes.publicAmenities),
+            isDark: isDark,
+          ),
+          _buildHeaderNavLink(
+            title: 'Memberships',
+            icon: Icons.card_membership_rounded,
+            onTap: () => context.push(AppRoutes.publicMemberships),
+            isDark: isDark,
+          ),
+          _buildHeaderNavLink(
+            title: 'Rules & Regulations',
+            icon: Icons.rule_folder_rounded,
+            onTap: () => context.push(AppRoutes.publicRules),
+            isDark: isDark,
+          ),
+          _buildHeaderNavLink(
+            title: 'Location & Hours',
+            icon: Icons.location_on_rounded,
+            onTap: () => context.push(AppRoutes.publicLocation),
+            isDark: isDark,
+          ),
+          const SizedBox(width: 6),
+        ] else ...[
+          // Mobile Navigation Menu (Separate Pages)
+          PopupMenuButton<String>(
+            tooltip: 'Navigation Menu',
+            icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            color: isDark ? AppColors.surface : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (route) => context.push(route),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: AppRoutes.publicFeatures,
+                child: Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Icon(Icons.bolt_rounded, size: 16, color: AppColors.primary),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Features & Tech', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      desc,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: AppRoutes.publicAmenities,
+                child: Row(
+                  children: [
+                    Icon(Icons.fitness_center_rounded, size: 16, color: AppColors.accentCyan),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Gym Amenities & Zones', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: AppRoutes.publicMemberships,
+                child: Row(
+                  children: [
+                    Icon(Icons.card_membership_rounded, size: 16, color: AppColors.accent),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Membership Plans', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: AppRoutes.publicRules,
+                child: Row(
+                  children: [
+                    Icon(Icons.rule_folder_rounded, size: 16, color: AppColors.primary),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Rules & Regulations', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: AppRoutes.publicLocation,
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on_rounded, size: 16, color: Color(0xFF64748B)),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Location & Hours', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  // --- AMENITIES & LIVE ZONES ---
-  Widget _buildAmenitiesSection(dynamic facilities) {
-    final defaultZones = [
-      {'name': 'Cardio Deck', 'desc': 'Treadmills, Rowers, Assault Bikes', 'rate': 0.45, 'status': 'Open'},
-      {'name': 'Free Weights Area', 'desc': 'Olympic Bars, Dumbbells to 50kg, Squat Cages', 'rate': 0.65, 'status': 'Open'},
-      {'name': 'Functional Turf Studio', 'desc': 'Sled Tracks, Kettlebells, Battle Ropes', 'rate': 0.30, 'status': 'Open'},
-      {'name': 'Group Fitness Hall', 'desc': 'HIIT, Yoga, Aerobics, and Stretching', 'rate': 0.20, 'status': 'Open'},
-    ];
-
-    return Column(
-      children: defaultZones.map((z) {
-        final name = z['name'] as String;
-        final desc = z['desc'] as String;
-        final rate = z['rate'] as double;
-        final status = z['status'] as String;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      status.toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                desc,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Live Density', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                  Text(
-                    '${(rate * 100).toInt()}% Capacity',
-                    style: const TextStyle(color: AppColors.accentCyan, fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: rate,
-                  minHeight: 6,
-                  backgroundColor: AppColors.surfaceLight,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // --- MEMBERSHIP TIERS ---
-  Widget _buildMembershipTiers(BuildContext context) {
-    final tiers = [
-      {
-        'title': 'Day Pass',
-        'price': '₱150',
-        'priceVal': 150.0,
-        'days': 1,
-        'duration': '1 Day Access',
-        'popular': false,
-        'features': [
-          'Full access to all facility zones',
-          'Locker & shower amenities',
-          'Digital attendance check-in/out',
         ],
-      },
-      {
-        'title': 'Monthly Basic',
-        'price': '₱1,200',
-        'priceVal': 1200.0,
-        'days': 30,
-        'duration': '30 Days Access',
-        'popular': true,
-        'features': [
-          'Unlimited gym entry all hours',
-          'AI-Powered Workout Recommender',
-          'Progress & weigh-in log tracking',
-          'Standard equipment orientation',
-        ],
-      },
-      {
-        'title': 'Quarterly Pro',
-        'price': '₱3,200',
-        'priceVal': 3200.0,
-        'days': 90,
-        'duration': '90 Days Access',
-        'popular': false,
-        'features': [
-          'All Monthly Basic benefits',
-          'PuLP Linear Optimization Meal Plans',
-          'Assigned Dedicated Fitness Coach',
-          'Bi-weekly progress evaluation',
-        ],
-      },
-      {
-        'title': 'Annual VIP',
-        'price': '₱10,800',
-        'priceVal': 10800.0,
-        'days': 365,
-        'duration': '365 Days Access',
-        'popular': false,
-        'features': [
-          'Full VIP gym privileges 365 days',
-          'Priority coach session booking',
-          'Personalized AI training & diet regimes',
-          '2 Free Guest Day Passes / month',
-        ],
-      },
-    ];
-
-    return Column(
-      children: tiers.map((t) {
-        final title = t['title'] as String;
-        final price = t['price'] as String;
-        final duration = t['duration'] as String;
-        final popular = t['popular'] as bool;
-        final features = t['features'] as List<String>;
-        final priceVal = (t['priceVal'] as num?)?.toDouble() ?? 1200.0;
-        final daysVal = (t['days'] as num?)?.toInt() ?? 30;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: popular ? AppColors.primary : AppColors.border,
-              width: popular ? 2 : 1,
+        // Functional Theme Toggle Button (Light / Dark)
+        const ThemeToggleButton(showLabel: true),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          child: ElevatedButton.icon(
+            onPressed: () => context.push(AppRoutes.login),
+            icon: const Icon(Icons.login_rounded, size: 14, color: Colors.black),
+            label: const Text(
+              'Sign In',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 0.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        duration,
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  if (popular)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'MOST POPULAR',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                ],
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  // --- HERO SECTION WITH ATHLETIC GREEN THEME & GYM BACKGROUND (FULL BLEED) ---
+  Widget _buildHeroSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFF090B0E),
+      ),
+      child: Stack(
+        children: [
+          // Dynamic Gym Atmosphere Background Image
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1600&auto=format&fit=crop',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: AppColors.surface,
               ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '/${duration.split(' ').first}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                ],
+            ),
+          ),
+
+          // High-Contrast Green & Charcoal Dark Overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF090B0E).withValues(alpha: 0.94),
+                    const Color(0xFF003D1A).withValues(alpha: 0.65), // Emerald ambient gym tint
+                    const Color(0xFF090B0E).withValues(alpha: 0.92),
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
               ),
-              const SizedBox(height: 16),
-              const Divider(color: AppColors.border, height: 1),
-              const SizedBox(height: 14),
-              ...features.map((f) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
+            ),
+          ),
+
+          // Subtle Green Radial Ambient Glow
+          Positioned(
+            top: -60,
+            right: -60,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.30),
+                    AppColors.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Hero Main Content (Centered vertically and horizontally)
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Next-Gen Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            f,
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                        Icon(Icons.bolt_rounded, color: AppColors.primary, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          'NEXT-GEN FITNESS PLATFORM',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            letterSpacing: 1.2,
                           ),
                         ),
                       ],
                     ),
-                  )),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: CustomButton(
-                  text: 'Select Plan & Register',
-                  isOutlined: true,
-                  onPressed: () {
-                    context.push(
-                      Uri(
-                        path: AppRoutes.register,
-                        queryParameters: {
-                          'plan': title,
-                          'price': priceVal.toString(),
-                          'days': daysVal.toString(),
-                        },
-                      ).toString(),
-                    );
-                  },
-                ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Slogan / Headline
+                  const Text(
+                    'Unleash Your Ultimate Potential at Vicious Fitness',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      height: 1.15,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Subtitle
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 750),
+                    child: const Text(
+                      'Smart gym management featuring custom AI workout routines, precision meal planning, live occupancy tracking, and certified personal trainers.',
+                      style: TextStyle(
+                        color: Color(0xFFD5DCE5),
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Call To Action Buttons (Original Green Theme Colors)
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 12,
+                    children: [
+                      // Primary Neon Athletic Green Button
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: () => context.push(AppRoutes.register),
+                          icon: const Icon(Icons.person_add_rounded, size: 18, color: Colors.black),
+                          label: const Text(
+                            'Join Vicious Now',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.black,
+                            elevation: 4,
+                            shadowColor: AppColors.primary.withValues(alpha: 0.5),
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Secondary Outlined Green Button
+                      SizedBox(
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push(AppRoutes.login),
+                          icon: const Icon(Icons.login_rounded, size: 18, color: AppColors.primary),
+                          label: const Text(
+                            'Portal Login',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary, width: 1.8),
+                            foregroundColor: Colors.white,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                            padding: const EdgeInsets.symmetric(horizontal: 26),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 
-  // --- FOOTER & CONTACT ---
-  Widget _buildFooter(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+  // --- HEADER NAVIGATION BUTTON HELPER ---
+  Widget _buildHeaderNavLink({
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 13, color: AppColors.primary),
+          label: Text(
+            title,
+            style: TextStyle(
+              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.location_on_rounded, color: AppColors.primary, size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Viscious Fitness Gym Location',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
+    );
+  }
+
+  // --- FOOTER & CONTACT (FEATURING LOCATION, OPERATING HOURS & LIVE STATUS) ---
+  Widget _buildFooter(BuildContext context, bool isDark, bool isOpen) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0C0F14) : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.border.withValues(alpha: 0.7) : const Color(0xFFCBD5E1),
+            width: 1.0,
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Caloocan City, Metro Manila\n(In collaboration with Global Reciprocal Colleges - BSIT Capstone)',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
-          ),
-          const SizedBox(height: 14),
-          const Row(
+        ),
+      ),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.schedule_rounded, color: AppColors.accentCyan, size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Operating Hours: 6:00 AM – 10:00 PM Daily',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoutes.login),
-                  icon: const Icon(Icons.badge_rounded, size: 16, color: AppColors.accent),
-                  label: const Text('Staff & Admin Portal', style: TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.accent),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              // Primary Footer Utility Bar (Moved from top per user request)
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  // Gym Location
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Caloocan City, Metro Manila',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
+
+                  // Operating Hours
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded, color: AppColors.accentCyan, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Open Daily: 8:00 AM – 11:00 PM',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Live Open / Closed Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (isOpen ? AppColors.primary : AppColors.error).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (isOpen ? AppColors.primary : AppColors.error).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: isOpen ? AppColors.primary : AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isOpen ? 'OPEN NOW' : 'CLOSED NOW • OPENS 8 AM',
+                          style: TextStyle(
+                            color: isOpen ? AppColors.primary : AppColors.error,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Direct link to Location & Hours page
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: InkWell(
+                      onTap: () => context.push(AppRoutes.publicLocation),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Location & Operating Hours Details',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Subline with Capstone collaboration info & operating hours text
+              Text(
+                'Operating Hours: 8:00 AM – 11:00 PM Daily • In collaboration with Global Reciprocal Colleges - BSIT Capstone',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark ? AppColors.textMuted : const Color(0xFF64748B),
+                  fontSize: 11,
+                  height: 1.3,
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

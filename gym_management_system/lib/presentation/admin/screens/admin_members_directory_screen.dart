@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/membership_model.dart';
 import '../../../domain/entities/membership_entity.dart';
@@ -64,22 +65,23 @@ class _AdminMembersDirectoryScreenState
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.cardColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: context.titleColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Members Records',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.titleColor,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         actions: [
+          const ThemeToggleButton(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Refresh Members',
@@ -115,18 +117,18 @@ class _AdminMembersDirectoryScreenState
           // Search bar
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            color: AppColors.surface,
+            color: context.cardColor,
             child: TextField(
               controller: _searchController,
               onChanged: (v) => setState(() => _searchQuery = v),
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: TextStyle(color: context.titleColor, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search members by name or email...',
-                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                hintStyle: TextStyle(color: context.mutedColor, fontSize: 13),
+                prefixIcon: Icon(Icons.search, color: context.mutedColor, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                        icon: Icon(Icons.close_rounded, size: 18, color: context.mutedColor),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -134,7 +136,7 @@ class _AdminMembersDirectoryScreenState
                       )
                     : null,
                 filled: true,
-                fillColor: AppColors.surfaceLight,
+                fillColor: context.elevatedSurface,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -142,7 +144,7 @@ class _AdminMembersDirectoryScreenState
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: context.borderLine),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -154,7 +156,7 @@ class _AdminMembersDirectoryScreenState
 
           // Filter chips row
           Container(
-            color: AppColors.surface,
+            color: context.cardColor,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -188,7 +190,7 @@ class _AdminMembersDirectoryScreenState
               ),
             ),
           ),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: context.borderLine, height: 1),
 
           // Member list
           Expanded(
@@ -202,14 +204,14 @@ class _AdminMembersDirectoryScreenState
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.person_search_rounded,
-                                color: AppColors.textMuted.withValues(alpha: 0.5), size: 56),
+                                color: context.mutedColor.withValues(alpha: 0.5), size: 56),
                             const SizedBox(height: 12),
                             Text(
                               _activeFilter == MemberFilterTab.pendingCash
                                   ? 'No pending cash approvals'
                                   : 'No members found',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: context.titleColor,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -221,8 +223,8 @@ class _AdminMembersDirectoryScreenState
                                   : (_activeFilter == MemberFilterTab.pendingCash
                                       ? 'Any customer requesting a cash pass will show here'
                                       : 'No members match the selected filter'),
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: context.subtitleColor,
                                 fontSize: 13,
                               ),
                             ),
@@ -235,10 +237,15 @@ class _AdminMembersDirectoryScreenState
                         itemBuilder: (context, index) {
                           final member = filteredMembers[index];
                           final membership = _getMembership(member.id, memberships);
+                          final hasPlan = membership != null &&
+                              membership.planName.trim().isNotEmpty &&
+                              membership.planName.trim().toLowerCase() != 'none';
+
                           return _MemberRecordCard(
                             member: member,
                             membership: membership,
                             onTap: () => _showMemberDetailSheet(context, member, membership),
+                            onSendNotice: hasPlan ? () => _showSendNoticeDialog(context, ref, member, membership) : null,
                             onApprovePending: membership?.isPending == true
                                 ? () async {
                                     if (membership == null) return;
@@ -284,7 +291,7 @@ class _AdminMembersDirectoryScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -438,6 +445,33 @@ class _AdminMembersDirectoryScreenState
                     ),
                   ),
                 ],
+                // Send Notice to member with plan
+                Builder(builder: (context) {
+                  final hasPlan = membership != null &&
+                      membership.planName.trim().isNotEmpty &&
+                      membership.planName.trim().toLowerCase() != 'none';
+                  if (!hasPlan) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showSendNoticeDialog(context, ref, member, membership);
+                        },
+                        icon: const Icon(Icons.notifications_active_outlined, color: AppColors.accent, size: 16),
+                        label: Text('Send Notice to ${member.name.split(' ').first}',
+                            style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 13)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.accent.withValues(alpha: 0.6)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
                 const SizedBox(height: 16),
 
                 // Assigned Coach Section (Objective 4 & DFD 6.0)
@@ -545,7 +579,7 @@ class _AdminMembersDirectoryScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -566,15 +600,15 @@ class _AdminMembersDirectoryScreenState
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: AppColors.textMuted,
+                      color: context.mutedColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
                 Text(
                   'Assign Coach for ${member.name}',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.titleColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -590,12 +624,12 @@ class _AdminMembersDirectoryScreenState
                 ),
                 const SizedBox(height: 16),
                 if (coaches.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Center(
                       child: Text(
                         'No coaches registered in system.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(color: context.subtitleColor, fontSize: 13),
                       ),
                     ),
                   )
@@ -607,10 +641,10 @@ class _AdminMembersDirectoryScreenState
                       decoration: BoxDecoration(
                         color: isCurrent
                             ? AppColors.primary.withValues(alpha: 0.1)
-                            : AppColors.surfaceLight,
+                            : context.elevatedSurface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isCurrent ? AppColors.primary : AppColors.border,
+                          color: isCurrent ? AppColors.primary : context.borderLine,
                         ),
                       ),
                       child: ListTile(
@@ -626,16 +660,16 @@ class _AdminMembersDirectoryScreenState
                         ),
                         title: Text(
                           c.name,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
+                          style: TextStyle(
+                            color: context.titleColor,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
                         ),
                         subtitle: Text(
                           c.specialization ?? 'Strength & Conditioning',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.subtitleColor,
                             fontSize: 12,
                           ),
                         ),
@@ -682,6 +716,216 @@ class _AdminMembersDirectoryScreenState
       },
     );
   }
+
+  void _showSendNoticeDialog(
+    BuildContext context,
+    WidgetRef ref,
+    UserModel member,
+    MembershipModel? membership,
+  ) {
+    if (membership == null ||
+        membership.planName.trim().isEmpty ||
+        membership.planName.toLowerCase() == 'none') {
+      return;
+    }
+
+    final remainingDays = membership.remainingDays;
+    final isExpiringSoon = remainingDays <= 7 && remainingDays >= 0;
+    final isPending = membership.isPending;
+
+    String initialTitle = 'Notice from Gym Admin';
+    String initialMessage = 'Hi ${member.name}, this is an official notice regarding your ${membership.planName} subscription.';
+
+    if (isExpiringSoon) {
+      initialTitle = 'Membership Expiration Notice';
+      initialMessage = 'Hello ${member.name}, your ${membership.planName} will expire in $remainingDays days (${DateFormat('MMM d, yyyy').format(membership.endDate)}). Please visit the front desk to renew your pass.';
+    } else if (isPending) {
+      initialTitle = 'Cash Payment Reminder';
+      initialMessage = 'Hi ${member.name}, your ${membership.planName} registration is waiting for cash payment of ₱${membership.price.toStringAsFixed(0)} at the gym counter.';
+    }
+
+    final titleController = TextEditingController(text: initialTitle);
+    final messageController = TextEditingController(text: initialMessage);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: context.cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.notifications_active_rounded, color: AppColors.accent, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Send Notice to Client',
+                          style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'Recipient: ${member.name} • ${membership.planName}',
+                          style: TextStyle(color: context.subtitleColor, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: context.elevatedSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: context.borderLine),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.card_membership_rounded, color: isExpiringSoon ? AppColors.accent : AppColors.primary, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${membership.planName} • ${membership.remainingDays} days remaining',
+                              style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text(
+                      'QUICK TEMPLATES',
+                      style: TextStyle(color: context.mutedColor, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ActionChip(
+                          label: const Text('7-Day Expiry Notice', style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setDialogState(() {
+                              titleController.text = 'Membership Expiration Notice';
+                              messageController.text = 'Hello ${member.name}, your ${membership.planName} will expire in ${membership.remainingDays} days. Please visit the front desk to renew your pass.';
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('Payment Reminder', style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setDialogState(() {
+                              titleController.text = 'Cash Payment Reminder';
+                              messageController.text = 'Hi ${member.name}, kindly visit the front desk to settle your cash payment of ₱${membership.price.toStringAsFixed(0)} for ${membership.planName}.';
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          label: const Text('Schedule Update', style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setDialogState(() {
+                              titleController.text = 'Gym Schedule Update';
+                              messageController.text = 'Hi ${member.name}, please be advised of upcoming facility updates or coaching schedule adjustments at Vicious Fitness.';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text('Notice Title', style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: titleController,
+                      style: TextStyle(color: context.titleColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: context.elevatedSurface,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderLine)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderLine)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Text('Notice Message', style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: messageController,
+                      maxLines: 4,
+                      style: TextStyle(color: context.titleColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: context.elevatedSurface,
+                        contentPadding: const EdgeInsets.all(12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderLine)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderLine)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: Text('Cancel', style: TextStyle(color: context.mutedColor)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final title = titleController.text.trim();
+                    final message = messageController.text.trim();
+                    if (title.isEmpty || message.isEmpty) return;
+                    Navigator.pop(dialogCtx);
+                    final ok = await ref.read(adminNotifierProvider.notifier).sendExpirationNotice(
+                      userId: member.id,
+                      title: title,
+                      message: message,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(ok
+                              ? 'Notice successfully sent to ${member.name}!'
+                              : 'Failed to send notice.'),
+                          backgroundColor: ok ? AppColors.primary : AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                  label: const Text('Send Notice', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 class _FilterChipTab extends StatelessWidget {
@@ -707,12 +951,12 @@ class _FilterChipTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? (color ?? AppColors.primary)
-              : AppColors.surfaceLight,
+              : context.elevatedSurface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? (color ?? AppColors.primary)
-                : (color != null ? color.withValues(alpha: 0.5) : AppColors.border),
+                : (color != null ? color.withValues(alpha: 0.5) : context.borderLine),
           ),
         ),
         child: Text(
@@ -720,7 +964,7 @@ class _FilterChipTab extends StatelessWidget {
           style: TextStyle(
             color: isSelected
                 ? Colors.black
-                : (badgeColor ?? AppColors.textPrimary),
+                : (badgeColor ?? context.titleColor),
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -735,12 +979,14 @@ class _MemberRecordCard extends StatelessWidget {
   final MembershipModel? membership;
   final VoidCallback onTap;
   final VoidCallback? onApprovePending;
+  final VoidCallback? onSendNotice;
 
   const _MemberRecordCard({
     required this.member,
     required this.membership,
     required this.onTap,
     this.onApprovePending,
+    this.onSendNotice,
   });
 
   @override
@@ -753,10 +999,10 @@ class _MemberRecordCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isPending ? AppColors.accent.withValues(alpha: 0.5) : AppColors.border,
+            color: isPending ? AppColors.accent.withValues(alpha: 0.5) : context.borderLine,
           ),
         ),
         child: Column(
@@ -787,8 +1033,8 @@ class _MemberRecordCard extends StatelessWidget {
                         member.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.titleColor,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
@@ -798,8 +1044,8 @@ class _MemberRecordCard extends StatelessWidget {
                         member.email,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: context.subtitleColor,
                           fontSize: 12,
                         ),
                       ),
@@ -841,7 +1087,7 @@ class _MemberRecordCard extends StatelessWidget {
                                 : (isActive ? '${mem.remainingDays} days left' : 'Expired'))
                             : 'No pass recorded',
                         style: TextStyle(
-                          color: isPending ? AppColors.accent : AppColors.textMuted,
+                          color: isPending ? AppColors.accent : context.mutedColor,
                           fontSize: 11,
                           fontWeight: isPending ? FontWeight.w700 : FontWeight.normal,
                         ),
@@ -872,8 +1118,27 @@ class _MemberRecordCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (onSendNotice != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onSendNotice,
+                  icon: const Icon(Icons.notifications_active_outlined, size: 14, color: AppColors.accent),
+                  label: const Text(
+                    'Send Notice to Client',
+                    style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
-            const Divider(color: AppColors.border, height: 1),
+            Divider(color: context.borderLine, height: 1),
             const SizedBox(height: 10),
             // Quick info row
             Row(
@@ -886,7 +1151,7 @@ class _MemberRecordCard extends StatelessWidget {
                 _QuickInfoChip(Icons.straighten_rounded,
                     '${member.heightCm.toStringAsFixed(0)} cm', AppColors.accent),
                 const Spacer(),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                Icon(Icons.chevron_right_rounded, color: context.mutedColor, size: 20),
               ],
             ),
           ],
@@ -952,9 +1217,9 @@ class _DetailSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: context.elevatedSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -972,8 +1237,8 @@ class _DetailSection extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.titleColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1005,8 +1270,8 @@ class _DetailRow extends StatelessWidget {
             width: 140,
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: context.mutedColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -1015,8 +1280,8 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.titleColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),

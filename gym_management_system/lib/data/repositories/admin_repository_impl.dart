@@ -20,6 +20,59 @@ class AdminRepositoryImpl implements AdminRepository {
   })  : _firestore = firestore ?? FirestoreService(),
         _localCache = localCache ?? LocalCacheService();
 
+  List<UserModel> _enforceCoachCapacityLimits(List<UserModel> members, {Set<String>? localMemberIds}) {
+    final Map<String, int> coachAssignedCount = {};
+    final List<UserModel> sanitized = [];
+
+    bool isDummyOrGhost(UserModel u) {
+      final n = u.name.toLowerCase();
+      final i = u.id.toLowerCase();
+      if (n.contains('test') ||
+          i.contains('test') ||
+          n.contains('dummy') ||
+          i.contains('dummy') ||
+          i.contains('walker') ||
+          n.contains('draven') ||
+          i.contains('draven')) {
+        return true;
+      }
+      if (localMemberIds != null && localMemberIds.isNotEmpty && !localMemberIds.contains(u.id)) {
+        return true;
+      }
+      return false;
+    }
+
+    final sorted = List<UserModel>.from(members);
+    sorted.sort((a, b) {
+      final aGhost = isDummyOrGhost(a) ? 1 : 0;
+      final bGhost = isDummyOrGhost(b) ? 1 : 0;
+      return aGhost.compareTo(bGhost);
+    });
+
+    for (final m in sorted) {
+      if (m.assignedCoachId != null && m.assignedCoachId!.isNotEmpty) {
+        final coachId = m.assignedCoachId!;
+        final current = coachAssignedCount[coachId] ?? 0;
+        final isGhost = isDummyOrGhost(m);
+        final coach = _localCache.getUserById(coachId);
+        final maxCap = (coach != null && coach.maxClients > 0) ? coach.maxClients : 20;
+
+        if (!isGhost && current < maxCap) {
+          coachAssignedCount[coachId] = current + 1;
+          sanitized.add(m);
+        } else {
+          // Strictly cap at coach's max limit, and unassign dummy/ghost overflow members
+          final unassigned = UserModel.fromEntity(m.copyWith(assignedCoachId: null, clearAssignedCoach: true));
+          sanitized.add(unassigned);
+          _localCache.saveUser(unassigned);
+        }
+      } else {
+        sanitized.add(m);
+      }
+    }
+    return sanitized;
+  }
+
   @override
   Future<List<UserModel>> getAllMembers() async {
     final localMembers = _localCache.getUsersByRole(UserRole.member);
@@ -28,20 +81,25 @@ class AdminRepositoryImpl implements AdminRepository {
         final remote = await _firestore.getUsersByRole(UserRole.member);
         if (remote.isNotEmpty) {
           final map = <String, UserModel>{};
-          for (final u in localMembers) {
-            map[u.id] = u;
-          }
           for (final u in remote) {
             map[u.id] = u;
           }
-          final merged = map.values.toList();
+          for (final u in localMembers) {
+            map[u.id] = u;
+          }
+          final merged = _enforceCoachCapacityLimits(
+            map.values.toList(),
+            localMemberIds: localMembers.map((m) => m.id).toSet(),
+          );
           _localCache.saveUsers(merged);
           return merged;
         }
       } catch (_) {}
     }
-    if (localMembers.isNotEmpty) return localMembers;
-    return _localCache.getAllUsers().where((u) => u.role == UserRole.member).toList();
+    if (localMembers.isNotEmpty) return _enforceCoachCapacityLimits(localMembers);
+    return _enforceCoachCapacityLimits(
+      _localCache.getAllUsers().where((u) => u.role == UserRole.member).toList(),
+    );
   }
 
   @override
@@ -64,8 +122,11 @@ class AdminRepositoryImpl implements AdminRepository {
         }
       } catch (_) {}
     }
-    if (localCoaches.isNotEmpty) return localCoaches;
-    return _localCache.getAllUsers().where((u) => u.role == UserRole.coach).toList();
+    if (localCoaches.isNotEmpty) {
+      return localCoaches.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
+    }
+    final all = _localCache.getAllUsers().where((u) => u.role == UserRole.coach).toList();
+    return all.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
   }
 
   @override
@@ -113,10 +174,26 @@ class AdminRepositoryImpl implements AdminRepository {
         final list = await _firestore.getAllAttendance();
         if (list.isNotEmpty) {
           _localCache.saveAttendanceList(list);
-          return list;
+          final autoClosed = _localCache.autoCheckOutClosedSessions();
+          final updatedList = _localCache.getAllAttendance();
+          if (autoClosed) {
+            for (final a in updatedList) {
+              if (a.checkOutTime != null) {
+                final remoteMatch = list.firstWhere(
+                  (r) => r.id == a.id,
+                  orElse: () => a,
+                );
+                if (remoteMatch.checkOutTime == null) {
+                  _firestore.logAttendance(a).catchError((_) {});
+                }
+              }
+            }
+          }
+          return updatedList;
         }
       } catch (_) {}
     }
+    _localCache.autoCheckOutClosedSessions();
     return _localCache.getAllAttendance();
   }
 
@@ -165,8 +242,13 @@ class AdminRepositoryImpl implements AdminRepository {
     required int durationDays,
   }) async {
     final now = DateTime.now();
+    final existingMem = _localCache.getMembership(userId);
+    final membershipId = (existingMem != null && existingMem.isPending)
+        ? existingMem.id
+        : const Uuid().v4();
+
     final newMembership = MembershipModel(
-      id: const Uuid().v4(),
+      id: membershipId,
       userId: userId,
       planName: planName,
       price: amount,
@@ -175,12 +257,58 @@ class AdminRepositoryImpl implements AdminRepository {
       status: MembershipStatus.active,
     );
 
+    // Save locally first for zero-latency offline-first update
+    _localCache.saveMembership(newMembership);
+
     if (Env.useFirebase) {
       try {
         await _firestore.saveMembership(newMembership);
       } catch (_) {}
     }
-    _localCache.saveMembership(newMembership);
+  }
+
+  UserModel? _findBestCoachForMemberGoal(String memberGoal, List<UserModel> coaches) {
+    if (coaches.isEmpty) return null;
+    final goal = memberGoal.toLowerCase();
+
+    // 1. Goal vs Specialization synergy:
+    // - Weight Loss / Fat Burn / Cardio -> Coach Elena (Fat Loss & Functional HIIT)
+    // - Muscle Gain / Hypertrophy / Bodybuilding -> Coach Dave (Bodybuilding & Hypertrophy)
+    // - Endurance / Strength / Conditioning -> Coach Marcus (Strength & Conditioning)
+    for (final coach in coaches) {
+      final spec = (coach.specialization ?? '').toLowerCase();
+      if ((goal.contains('weight') || goal.contains('fat') || goal.contains('loss') || goal.contains('cardio') || goal.contains('burn')) &&
+          (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional'))) {
+        return coach;
+      }
+      if ((goal.contains('muscle') || goal.contains('gain') || goal.contains('hypertrophy') || goal.contains('bodybuilding')) &&
+          (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding'))) {
+        return coach;
+      }
+      if ((goal.contains('strength') || goal.contains('endurance') || goal.contains('conditioning') || goal.contains('power') || goal.contains('stamina')) &&
+          (spec.contains('strength') || spec.contains('conditioning') || spec.contains('endurance'))) {
+        return coach;
+      }
+    }
+
+    // 2. Secondary check against coach's own fitnessGoal / title
+    for (final coach in coaches) {
+      final cGoal = coach.fitnessGoal.toLowerCase();
+      if (goal.contains('weight') && (cGoal.contains('cardio') || cGoal.contains('health'))) return coach;
+      if (goal.contains('muscle') && (cGoal.contains('hypertrophy') || cGoal.contains('muscle'))) return coach;
+      if (goal.contains('endurance') && (cGoal.contains('endurance') || cGoal.contains('strength'))) return coach;
+    }
+
+    // 3. Fallback: coach with lowest current client workload
+    final allMembers = _localCache.getUsersByRole(UserRole.member);
+    final sortedCoaches = List<UserModel>.from(coaches);
+    sortedCoaches.sort((a, b) {
+      final countA = allMembers.where((m) => m.assignedCoachId == a.id).length;
+      final countB = allMembers.where((m) => m.assignedCoachId == b.id).length;
+      return countA.compareTo(countB);
+    });
+
+    return sortedCoaches.first;
   }
 
   @override
@@ -199,16 +327,72 @@ class AdminRepositoryImpl implements AdminRepository {
       status: MembershipStatus.active,
     );
 
+    // Save locally first for instant UI response
+    _localCache.saveMembership(approved);
+
     if (Env.useFirebase) {
       try {
         await _firestore.saveMembership(approved);
       } catch (_) {}
     }
-    _localCache.saveMembership(approved);
+
+    // Auto-assign to matching coach ONLY IF the plan includes coaching
+    final planLower = membership.planName.toLowerCase();
+    final bool planIncludesCoach = planLower.contains('pro') ||
+        planLower.contains('vip') ||
+        planLower.contains('coach') ||
+        planLower.contains('trainer') ||
+        planLower.contains('personal');
+
+    if (planIncludesCoach) {
+      UserModel? member = _localCache.getUserById(membership.userId);
+      if (member == null && Env.useFirebase) {
+        try {
+          member = await _firestore.getUser(membership.userId);
+        } catch (_) {}
+      }
+
+      if (member != null && (member.assignedCoachId == null || member.assignedCoachId!.isEmpty)) {
+        final coaches = await getAllCoaches();
+        if (coaches.isNotEmpty) {
+          final bestCoach = _findBestCoachForMemberGoal(member.fitnessGoal, coaches);
+          if (bestCoach != null) {
+            final updatedMember = UserModel.fromEntity(member.copyWith(assignedCoachId: bestCoach.id));
+            _localCache.saveUser(updatedMember);
+            if (Env.useFirebase) {
+              try {
+                await _firestore.saveUser(updatedMember);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } else {
+      // If plan does not include a coach (e.g. Monthly Basic, Student, Day Pass), ensure member is not assigned to a coach
+      UserModel? member = _localCache.getUserById(membership.userId);
+      if (member == null && Env.useFirebase) {
+        try {
+          member = await _firestore.getUser(membership.userId);
+        } catch (_) {}
+      }
+      if (member != null && member.assignedCoachId != null && member.assignedCoachId!.isNotEmpty) {
+        final unassignedMember = UserModel.fromEntity(member.copyWith(assignedCoachId: null, clearAssignedCoach: true));
+        _localCache.saveUser(unassignedMember);
+        if (Env.useFirebase) {
+          try {
+            await _firestore.saveUser(unassignedMember);
+          } catch (_) {}
+        }
+      }
+    }
   }
 
   @override
   Future<void> rejectPendingMembership({required String membershipId, required String userId}) async {
+    // Delete/expire locally first
+    _localCache.deleteMembership(userId);
+    _localCache.deleteMembershipById(membershipId);
+
     if (Env.useFirebase) {
       try {
         final expired = MembershipModel(
@@ -223,7 +407,6 @@ class AdminRepositoryImpl implements AdminRepository {
         await _firestore.saveMembership(expired);
       } catch (_) {}
     }
-    _localCache.deleteMembership(userId);
   }
 
   @override
@@ -247,9 +430,26 @@ class AdminRepositoryImpl implements AdminRepository {
     required String memberId,
     required String coachId,
   }) async {
-    final member = _localCache.getUserById(memberId);
+    final bool isUnassigning = coachId.trim().isEmpty;
+    if (!isUnassigning) {
+      final coach = _localCache.getUserById(coachId);
+      final maxCap = (coach != null && coach.maxClients > 0) ? coach.maxClients : 20;
+      final allMembers = await getAllMembers();
+      final currentCount = allMembers.where((m) => m.assignedCoachId == coachId && m.id != memberId).length;
+      if (currentCount >= maxCap) {
+        throw Exception('Coach ${coach?.name ?? coachId} is at maximum capacity ($maxCap clients) and cannot accept new clients.');
+      }
+    }
+
+    final allMembers = await getAllMembers();
+    final member = _localCache.getUserById(memberId) ?? allMembers.where((m) => m.id == memberId).firstOrNull;
     if (member != null) {
-      final updated = UserModel.fromEntity(member.copyWith(assignedCoachId: coachId));
+      final updated = UserModel.fromEntity(
+        member.copyWith(
+          assignedCoachId: isUnassigning ? null : coachId,
+          clearAssignedCoach: isUnassigning,
+        ),
+      );
       _localCache.saveUser(updated);
       if (Env.useFirebase) {
         try {
@@ -261,12 +461,24 @@ class AdminRepositoryImpl implements AdminRepository {
 
   @override
   Future<void> logMemberCheckIn(String userId) async {
+    final now = DateTime.now();
+    if (now.hour < 6 || now.hour >= 23) {
+      throw Exception('Facility Closed: Member check-in is strictly disabled outside operating hours (6:00 AM – 11:00 PM).');
+    }
     final att = AttendanceModel(
       id: const Uuid().v4(),
       userId: userId,
-      checkInTime: DateTime.now(),
+      checkInTime: now,
     );
     _localCache.logAttendance(att);
+
+    // Reset exercise completion for the user's active workout plan so they have a fresh routine for their new check-in visit
+    final activePlan = _localCache.getWorkoutPlan(userId);
+    if (activePlan != null) {
+      final resetExercises = activePlan.exercises.map((e) => e.copyWith(isCompleted: false)).toList();
+      _localCache.saveWorkoutPlan(activePlan.copyWith(exercises: resetExercises));
+    }
+
     if (Env.useFirebase) {
       try {
         await _firestore.logAttendance(att);
@@ -351,6 +563,8 @@ class AdminRepositoryImpl implements AdminRepository {
     if (reoptimizingAll) {
       candidates = List.from(eligibleMembers);
     }
+    // Prioritize newest registered members first so newly created customers get matched immediately
+    candidates.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     // Map coach current client counts (strictly counting eligible coaching clients)
     final Map<String, int> coachClientCount = {};
@@ -371,10 +585,13 @@ class AdminRepositoryImpl implements AdminRepository {
 
       for (final coach in coaches) {
         final currentLoad = coachClientCount[coach.id] ?? 0;
-        final maxCap = coach.maxClients >= 10 ? coach.maxClients : 15;
+        final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
 
-        // Capacity penalty if coach has reached or exceeded max clients
-        final int capacityPenalty = currentLoad >= maxCap ? 30 : 0;
+        // STRICT CAPACITY ENFORCEMENT:
+        // When coach reaches maximum client limit, they CANNOT accept any new client!
+        if (currentLoad >= maxCap) {
+          continue;
+        }
 
         // 1. Goal vs Specialization synergy (up to 40 pts)
         final goal = member.fitnessGoal.toLowerCase();
@@ -393,13 +610,13 @@ class AdminRepositoryImpl implements AdminRepository {
         }
 
         // 2. Workload balance score (up to 40 pts - inverse of load ratio)
-        final ratio = (currentLoad / maxCap).clamp(0.0, 1.5);
-        final workloadScore = ((1.0 - (ratio / 1.5)) * 40).round();
+        final ratio = (currentLoad / maxCap).clamp(0.0, 1.0);
+        final workloadScore = ((1.0 - (ratio * 0.5)) * 40).round();
 
         // 3. Experience & demographics compatibility (up to 20 pts)
         final expScore = 15;
 
-        final totalScore = (specScore + workloadScore + expScore - capacityPenalty).clamp(40, 99);
+        final totalScore = (specScore + workloadScore + expScore).clamp(40, 99);
 
         if (totalScore > bestScore) {
           bestScore = totalScore;
@@ -435,6 +652,23 @@ class AdminRepositoryImpl implements AdminRepository {
       matches: matches,
       executedAt: DateTime.now(),
     );
+  }
+
+  @override
+  Future<void> updateCoachCapacity({
+    required String coachId,
+    required int maxClients,
+  }) async {
+    final coach = _localCache.getUserById(coachId);
+    if (coach != null) {
+      final updated = UserModel.fromEntity(coach.copyWith(maxClients: maxClients));
+      _localCache.saveUser(updated);
+      if (Env.useFirebase) {
+        try {
+          await _firestore.saveUser(updated);
+        } catch (_) {}
+      }
+    }
   }
 }
 

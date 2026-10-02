@@ -15,7 +15,7 @@ class FacilityEntity {
     required this.capacity,
     this.currentOccupancy = 0,
     this.status = 'open',
-    this.operatingHours = '6:00 AM - 10:00 PM',
+    this.operatingHours = '8:00 AM - 11:00 PM',
     this.iconName,
   });
 
@@ -27,6 +27,7 @@ class FacilityEntity {
   double get occupancyRate =>
       capacity > 0 ? (currentOccupancy / capacity).clamp(0.0, 1.0) : 0.0;
   int get occupancyPercent => (occupancyRate * 100).round();
+  bool get isFullyOccupied => capacity > 0 && currentOccupancy >= capacity;
 
   FacilityEntity copyWith({
     String? id,
@@ -58,7 +59,7 @@ class EquipmentEntity {
   final String name;
   final String category; // 'Cardio', 'Strength', 'Free Weights', 'Functional', 'Recovery'
   final String serialNumber;
-  final String status; // 'operational', 'under_maintenance', 'out_of_order'
+  final String status; // 'operational', 'occupied', 'under_maintenance', 'out_of_order'
   final DateTime lastMaintained;
   final DateTime nextMaintenanceDate;
   final String? notes;
@@ -77,6 +78,10 @@ class EquipmentEntity {
   });
 
   bool get isOperational => status == 'operational';
+  bool get isOccupied =>
+      status.toLowerCase() == 'occupied' ||
+      status.toLowerCase() == 'in_use' ||
+      status.toLowerCase() == 'in-use';
   bool get isUnderMaintenance => status == 'under_maintenance';
   bool get isOutOfOrder => status == 'out_of_order';
 

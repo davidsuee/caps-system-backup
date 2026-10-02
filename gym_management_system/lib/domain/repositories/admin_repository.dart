@@ -37,6 +37,7 @@ abstract class AdminRepository {
   Future<void> rejectPendingMembership({required String membershipId, required String userId});
   Future<AssignmentOptimizationResult> runTrainerAssignmentOptimization();
   Future<void> assignMemberToCoach({required String memberId, required String coachId});
+  Future<void> updateCoachCapacity({required String coachId, required int maxClients});
   Future<void> logMemberCheckIn(String userId);
   Future<void> logMemberCheckOut(String userId);
 }

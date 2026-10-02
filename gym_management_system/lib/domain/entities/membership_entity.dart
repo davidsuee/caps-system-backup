@@ -50,12 +50,24 @@ class AttendanceEntity {
   final String userId;
   final DateTime checkInTime;
   final DateTime? checkOutTime;
+  final String? guestName;
+  final bool isWalkIn;
+  final double? amountPaid;
+  final String? contactNumber;
+  final String? paymentMethod;
+  final String? notes;
 
   const AttendanceEntity({
     required this.id,
     required this.userId,
     required this.checkInTime,
     this.checkOutTime,
+    this.guestName,
+    this.isWalkIn = false,
+    this.amountPaid,
+    this.contactNumber,
+    this.paymentMethod,
+    this.notes,
   });
 
   bool get isCompleted => checkOutTime != null;

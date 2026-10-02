@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_textfield.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../providers/auth_provider.dart';
@@ -76,80 +77,99 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 // Logo & Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-                          tooltip: 'Back to Viscious Fitness',
-                          onPressed: () {
-                            if (Navigator.of(context).canPop()) {
-                              context.pop();
-                            } else {
-                              context.go(AppRoutes.welcome);
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.arrow_back_rounded, color: context.titleColor),
+                            tooltip: 'Back to Vicious Fitness',
+                            onPressed: () {
+                              if (Navigator.of(context).canPop()) {
+                                context.pop();
+                              } else {
+                                context.go(AppRoutes.welcome);
+                              }
+                            },
                           ),
-                          child: const Icon(Icons.fitness_center, color: AppColors.primary, size: 28),
-                        ),
-                        const SizedBox(width: 14),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'VISCOUS',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.5,
-                              ),
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 44,
+                            height: 44,
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                             ),
-                            Text(
-                              'Gym & Recommendation Platform',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Image.asset(
+                              'assets/images/vicious_logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.fitness_center, color: AppColors.primary, size: 26),
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'VICIOUS',
+                                  style: TextStyle(
+                                    color: context.titleColor,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                                Text(
+                                  'Gym & Recommendation Platform',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: context.subtitleColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const ThemeToggleButton(),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(Icons.home_outlined, color: AppColors.primary),
+                          tooltip: 'Vicious Fitness Home',
+                          onPressed: () => context.go(AppRoutes.welcome),
                         ),
                       ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.home_outlined, color: AppColors.primary),
-                      tooltip: 'Viscious Fitness Home',
-                      onPressed: () => context.go(AppRoutes.welcome),
                     ),
                   ],
                 ),
                 const SizedBox(height: 36),
-                const Text(
+                Text(
                   'Sign In',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.titleColor,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Welcome back! Enter your credentials to access your account.',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.subtitleColor,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -230,18 +250,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Don't have an account? ",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: TextStyle(color: context.subtitleColor, fontSize: 14),
                     ),
-                    GestureDetector(
-                      onTap: () => context.push(AppRoutes.register),
-                      child: const Text(
-                        'Create an Account',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => context.push(AppRoutes.register),
+                        child: const Text(
+                          'Create an Account',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
@@ -250,7 +275,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 24),
 
                 // Quick Demo Login (One-Tap Access)
-                _buildQuickDemoLogins(),
+                _buildQuickDemoLogins(context),
                 const SizedBox(height: 20),
               ],
             ),
@@ -266,13 +291,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _handleLogin();
   }
 
-  Widget _buildQuickDemoLogins() {
+  Widget _buildQuickDemoLogins(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,10 +313,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: const Icon(Icons.flash_on_rounded, color: AppColors.primary, size: 16),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Demo Quick Access (One-Tap Sign In)',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.titleColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -299,12 +324,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Tap any role below to automatically sign in for testing or defense:',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: TextStyle(color: context.subtitleColor, fontSize: 11),
           ),
           const SizedBox(height: 12),
           _buildDemoChip(
+            context: context,
             roleTitle: 'Coach / Trainer',
             name: 'Coach Marcus Vance',
             email: 'coach@gym.com',
@@ -313,6 +339,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 8),
           _buildDemoChip(
+            context: context,
             roleTitle: 'Gym Administrator',
             name: 'Admin Sarah Connor',
             email: 'staff@gym.com',
@@ -321,6 +348,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 8),
           _buildDemoChip(
+            context: context,
             roleTitle: 'Gym Member',
             name: 'Sarah Jenkins',
             email: 'sarah.j@example.com',
@@ -333,6 +361,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildDemoChip({
+    required BuildContext context,
     required String roleTitle,
     required String name,
     required String email,
@@ -347,7 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: context.elevatedSurface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
@@ -379,8 +408,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(width: 6),
                         Text(
                           '• $name',
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
+                          style: TextStyle(
+                            color: context.titleColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -390,8 +419,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 2),
                     Text(
                       email,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
+                      style: TextStyle(
+                        color: context.mutedColor,
                         fontSize: 11,
                       ),
                     ),

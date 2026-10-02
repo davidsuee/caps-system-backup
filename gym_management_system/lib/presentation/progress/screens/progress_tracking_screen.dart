@@ -10,6 +10,10 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/bmi_calculator.dart';
 import '../../workout/providers/workout_provider.dart';
 import '../../meal/providers/meal_provider.dart';
+import '../../dashboard/widgets/member_app_bar.dart';
+import '../../dashboard/widgets/member_bottom_nav.dart';
+import '../../../core/utils/facility_hours_helper.dart';
+import '../../../data/datasources/local/local_cache_service.dart';
 import '../providers/progress_provider.dart';
 
 class ProgressTrackingScreen extends ConsumerStatefulWidget {
@@ -32,6 +36,44 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
   }
 
   void _showAddLogDialog() {
+    final isGymOpen = FacilityHoursHelper.isGymOpen();
+    if (!isGymOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(FacilityHoursHelper.closedProgressWarning),
+          backgroundColor: AppColors.error,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final user = ref.read(authNotifierProvider).user;
+    if (user != null) {
+      final activeAtt = LocalCacheService().getActiveAttendance(user.id);
+      if (activeAtt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(FacilityHoursHelper.checkInRequiredWarning),
+            backgroundColor: Colors.amber,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+      final isSessionCompleted = LocalCacheService().isAttendanceSessionCompleted(activeAtt.id);
+      if (isSessionCompleted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(FacilityHoursHelper.sessionAlreadyCompletedWarning),
+            backgroundColor: AppColors.accentCyan,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    }
+
     final weightController = TextEditingController();
     final bodyFatController = TextEditingController();
     final notesController = TextEditingController();
@@ -39,7 +81,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -63,7 +105,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                     style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                    icon: Icon(Icons.close, color: context.mutedColor),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -167,13 +209,46 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
             : (logs.isNotEmpty ? logs.first.weightKg : user.weightKg));
     final delta = currentWeight - initialWeight;
 
+    final isGymOpen = FacilityHoursHelper.isGymOpen();
+    final activeAttendance = LocalCacheService().getActiveAttendance(user.id);
+    final isCheckedIn = activeAttendance != null;
+    final isSessionCompleted = activeAttendance != null &&
+        LocalCacheService().isAttendanceSessionCompleted(activeAttendance.id);
+    final isLocked = !isGymOpen || !isCheckedIn || isSessionCompleted;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Progress Tracking'),
+      appBar: MemberAppBar(
+        title: 'Progress Tracking',
+        subtitle: 'Body Metrics & Weigh-In Logs',
+        icon: Icons.show_chart_rounded,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
-            onPressed: _showAddLogDialog,
+          Container(
+            decoration: BoxDecoration(
+              color: isLocked
+                  ? context.cardColor
+                  : AppColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isLocked
+                    ? context.borderLine
+                    : AppColors.primary.withValues(alpha: 0.4),
+              ),
+            ),
+            child: IconButton(
+              icon: Icon(
+                isLocked ? Icons.lock_outline_rounded : Icons.add_rounded,
+                color: isLocked ? context.mutedColor : AppColors.primary,
+                size: 20,
+              ),
+              tooltip: isLocked
+                  ? (!isGymOpen
+                      ? 'Locked: Gym closed (6:00 AM – 11:00 PM)'
+                      : (!isCheckedIn
+                          ? 'Locked: Check-in required at front desk'
+                          : 'Locked: Session progress completed'))
+                  : 'Log Biometrics',
+              onPressed: _showAddLogDialog,
+            ),
           ),
         ],
       ),
@@ -181,6 +256,14 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           children: [
+            // Check-in & Facility Operating Hours Gate Banner
+            _buildCheckInGateBanner(
+              context: context,
+              isGymOpen: isGymOpen,
+              isCheckedIn: isCheckedIn,
+              isSessionCompleted: isSessionCompleted,
+            ),
+
             // Stats Header Cards
             Row(
               children: [
@@ -207,9 +290,9 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.borderLine),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +323,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                                 drawVerticalLine: false,
                                 horizontalInterval: 2,
                                 getDrawingHorizontalLine: (val) => FlLine(
-                                  color: AppColors.border.withValues(alpha: 0.6),
+                                  color: context.borderLine,
                                   strokeWidth: 1,
                                 ),
                               ),
@@ -254,7 +337,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                                     reservedSize: 34,
                                     getTitlesWidget: (val, meta) => Text(
                                       '${val.toInt()}',
-                                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                      style: TextStyle(color: context.mutedColor, fontSize: 11),
                                     ),
                                   ),
                                 ),
@@ -267,7 +350,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                                       if (index >= 0 && index < logs.length) {
                                         return Text(
                                           DateFormat('M/d').format(logs[index].date),
-                                          style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                          style: TextStyle(color: context.mutedColor, fontSize: 10),
                                         );
                                       }
                                       return const Text('');
@@ -321,9 +404,9 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.borderLine),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -344,13 +427,13 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                         children: [
                           Text(
                             DateFormat('MMMM d, yyyy').format(log.date),
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: context.titleColor, fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                           if ((log.notes ?? '').isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(
                               log.notes ?? '',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              style: TextStyle(color: context.mutedColor, fontSize: 12),
                             ),
                           ],
                         ],
@@ -366,6 +449,197 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
             )),
           ],
         ),
+      ),
+      bottomNavigationBar: const MemberBottomNav(currentIndex: 3),
+    );
+  }
+
+  Widget _buildCheckInGateBanner({
+    required BuildContext context,
+    required bool isGymOpen,
+    required bool isCheckedIn,
+    required bool isSessionCompleted,
+  }) {
+    if (!isGymOpen) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.6), width: 1.4),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.lock_clock_rounded, color: AppColors.error, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'GYM IS CLOSED (Outside Operating Hours)',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Operating Hours: 6:00 AM – 11:00 PM Daily.\nBiometric progress logging is disabled outside operating hours because you are not inside the gym.',
+                    style: TextStyle(
+                      color: context.titleColor,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!isCheckedIn) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.6), width: 1.4),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.how_to_reg_rounded, color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'NOT CHECKED IN AT RECEPTION',
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'You are not checked in to the gym. Please check in with the admin at the front reception desk before you can log new biometric progress entries.',
+                    style: TextStyle(
+                      color: context.titleColor,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isSessionCompleted) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.6), width: 1.4),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'TODAY\'S PROGRESS COMPLETED & SAVED',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'You have completed your workout progress for this gym visit. Biometrics and session tracking are locked. Check in via the admin module on your next visit to log progress again.',
+                    style: TextStyle(
+                      color: context.titleColor,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Checked in & active
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'CHECKED IN • Live gym session active. Tap the "+" button above to log your weigh-in.',
+              style: TextStyle(color: context.titleColor, fontSize: 11.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -383,14 +657,14 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(title, style: TextStyle(color: context.subtitleColor, fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
         ],

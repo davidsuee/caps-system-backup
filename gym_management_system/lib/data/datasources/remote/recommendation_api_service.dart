@@ -1,3 +1,4 @@
+import 'dart:math';
 import '../../../core/network/api_client.dart';
 import '../../models/workout_plan_model.dart';
 import '../../models/meal_plan_model.dart';
@@ -99,7 +100,14 @@ class RecommendationApiService {
       return MealPlanModel.fromJson(data, 'meal_${user.id}_${DateTime.now().millisecondsSinceEpoch}');
     } catch (e) {
       // Graceful on-device fallback if microservice is offline
-      return _generateOnDeviceMealFallback(user, targetCalories, targetProtein, targetCarbs, targetFat);
+      return _generateOnDeviceMealFallback(
+        user,
+        targetCalories,
+        targetProtein,
+        targetCarbs,
+        targetFat,
+        dietaryRestrictions.isNotEmpty ? dietaryRestrictions : user.dietaryRestrictions,
+      );
     }
   }
 
@@ -662,7 +670,7 @@ class RecommendationApiService {
       userId: user.id,
       splitTitle: split,
       confidenceScore: 0.92,
-      source: 'viscous_smart_engine',
+      source: 'vicious_smart_engine',
       summary: 'Personalized for ${user.fitnessGoal} (${user.experienceLevel} • ${user.activityLevel}) based on your biometrics (${user.weightKg.toInt()} kg, ${user.heightCm.toInt()} cm). $routineSummary',
       exercises: exercises,
       generatedAt: DateTime.now(),
@@ -676,10 +684,13 @@ class RecommendationApiService {
     double cal,
     double? prot,
     double? carb,
-    double? fat,
-  ) {
+    double? fat, [
+    List<String> dietaryRestrictions = const [],
+  ]) {
     final goal = user.fitnessGoal.toLowerCase();
-    final restrictions = (user.dietaryRestrictions).map((r) => r.toLowerCase().trim()).where((r) => r.isNotEmpty).toList();
+    final effectiveRestrictions = dietaryRestrictions.isNotEmpty ? dietaryRestrictions : user.dietaryRestrictions;
+    final restrictions = effectiveRestrictions.map((r) => r.toLowerCase().trim()).where((r) => r.isNotEmpty).toList();
+    final noSeafood = restrictions.any((r) => r.contains('seafood') || r.contains('fish'));
 
     // Calculate macro ratios dynamically based on fitness goal
     double pRatio;
@@ -717,187 +728,604 @@ class RecommendationApiService {
     // Scale serving quantities relative to baseline 2000 kcal diet
     final scale = (cal / 2000.0).clamp(0.6, 2.0);
 
-    // Build Breakfast
+    // Multi-variety pseudo-random generator so meals rotate on refresh
+    final rnd = Random();
+    final bVariant = rnd.nextInt(4);
+    int lVariant = rnd.nextInt(4);
+    if (noSeafood && lVariant == 2) {
+      // Variant 2 has tuna flakes; substitute with Chicken Tinola (1) or Tofu/Monggo (3) or Grilled Chicken (0)
+      lVariant = rnd.nextBool() ? 1 : 3;
+    }
+    int dVariant = rnd.nextInt(4);
+    if (noSeafood && (dVariant == 2 || dVariant == 0)) {
+      // Variant 2 is Salmon/Bangus, Variant 0 is Tilapia; substitute with Bistek Tagalog (1) or Lean Beef Stir-Fry (3)
+      dVariant = rnd.nextBool() ? 1 : 3;
+    }
+    final sVariant = rnd.nextInt(4);
+
+    // --- 1. BUILD BREAKFAST VARIETY ---
     List<FoodItemModel> breakfastItems;
-    if (goal.contains('loss')) {
-      breakfastItems = [
-        FoodItemModel(
-          foodId: 'F002',
-          name: 'Boiled Egg Whites with Spinach',
-          category: 'Breakfast',
-          servings: (3 * scale).roundToDouble(),
-          servingUnit: '${(3 * scale).toInt()} egg whites',
-          calories: (bCal * 0.35).roundToDouble(),
-          protein: (bCal * 0.35 * 0.7 / 4.0).roundToDouble(),
-          carbs: 2,
-          fat: 0.5,
-          cost: 20.0,
-        ),
-        FoodItemModel(
-          foodId: 'F001',
-          name: 'Rolled Oats with Cinnamon & Chia Seeds',
-          category: 'Breakfast',
-          servings: (1 * scale).toStringAsFixed(1) == '1.0' ? 1 : 1.5,
-          servingUnit: '1 bowl',
-          calories: (bCal * 0.65).roundToDouble(),
-          protein: (bCal * 0.65 * 0.15 / 4.0).roundToDouble(),
-          carbs: (bCal * 0.65 * 0.70 / 4.0).roundToDouble(),
-          fat: 3.5,
-          cost: 25.0,
-        ),
-      ];
-    } else if (goal.contains('muscle') || goal.contains('gain')) {
-      breakfastItems = [
-        FoodItemModel(
-          foodId: 'F002',
-          name: 'Whole Scrambled Eggs with Avocado',
-          category: 'Breakfast',
-          servings: (3 * scale).roundToDouble(),
-          servingUnit: '${(3 * scale).toInt()} eggs',
-          calories: (bCal * 0.50).roundToDouble(),
-          protein: (bCal * 0.50 * 0.35 / 4.0).roundToDouble(),
-          carbs: 4,
-          fat: (bCal * 0.50 * 0.55 / 9.0).roundToDouble(),
-          cost: 35.0,
-        ),
-        FoodItemModel(
-          foodId: 'F001',
-          name: 'Hearty Oatmeal with Banana & Peanut Butter',
-          category: 'Breakfast',
-          servings: 1.5,
-          servingUnit: 'Large bowl',
-          calories: (bCal * 0.50).roundToDouble(),
-          protein: (bCal * 0.50 * 0.20 / 4.0).roundToDouble(),
-          carbs: (bCal * 0.50 * 0.60 / 4.0).roundToDouble(),
-          fat: 8.0,
-          cost: 40.0,
-        ),
-      ];
-    } else {
-      breakfastItems = [
-        FoodItemModel(
-          foodId: 'F001',
-          name: 'Rolled Oats with Fresh Berries',
-          category: 'Breakfast',
-          servings: 1.0,
-          servingUnit: '1 cup',
-          calories: (bCal * 0.60).roundToDouble(),
-          protein: (bCal * 0.60 * 0.15 / 4.0).roundToDouble(),
-          carbs: (bCal * 0.60 * 0.70 / 4.0).roundToDouble(),
-          fat: 4.0,
-          cost: 30.0,
-        ),
-        FoodItemModel(
-          foodId: 'F002',
-          name: 'Boiled Whole Eggs',
-          category: 'Breakfast',
-          servings: 2,
-          servingUnit: '2 eggs',
-          calories: (bCal * 0.40).roundToDouble(),
-          protein: (bCal * 0.40 * 0.40 / 4.0).roundToDouble(),
-          carbs: 1,
-          fat: 9.0,
-          cost: 20.0,
-        ),
-      ];
+    switch (bVariant) {
+      case 1:
+        // Variant 1: Whole Wheat Bread with Peanut Butter & Scrambled Eggs
+        breakfastItems = [
+          FoodItemModel(
+            foodId: 'F005',
+            name: 'Toasted Whole Wheat Bread with Peanut Butter',
+            category: 'Breakfast',
+            servings: (2 * scale).roundToDouble(),
+            servingUnit: '${(2 * scale).toInt().clamp(1, 4)} slices',
+            calories: (bCal * 0.60).roundToDouble(),
+            protein: (bCal * 0.60 * 0.20 / 4.0).roundToDouble(),
+            carbs: (bCal * 0.60 * 0.55 / 4.0).roundToDouble(),
+            fat: (bCal * 0.60 * 0.25 / 9.0).roundToDouble(),
+            cost: 25.0,
+          ),
+          FoodItemModel(
+            foodId: 'F002',
+            name: goal.contains('loss') ? 'Scrambled Egg Whites with Spinach' : 'Whole Scrambled Eggs with Avocado',
+            category: 'Breakfast',
+            servings: (2 * scale).roundToDouble(),
+            servingUnit: '${(2 * scale).toInt().clamp(2, 5)} eggs',
+            calories: (bCal * 0.40).roundToDouble(),
+            protein: (bCal * 0.40 * 0.60 / 4.0).roundToDouble(),
+            carbs: 2,
+            fat: (bCal * 0.40 * 0.35 / 9.0).roundToDouble(),
+            cost: 25.0,
+          ),
+        ];
+        break;
+      case 2:
+        // Variant 2: High-Protein Chicken Arroz Caldo with Egg
+        breakfastItems = [
+          FoodItemModel(
+            foodId: 'F009',
+            name: 'High-Protein Chicken Arroz Caldo with Ginger & Garlic',
+            category: 'Breakfast',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '1 large bowl',
+            calories: (bCal * 0.65).roundToDouble(),
+            protein: (bCal * 0.65 * 0.35 / 4.0).roundToDouble(),
+            carbs: (bCal * 0.65 * 0.50 / 4.0).roundToDouble(),
+            fat: (bCal * 0.65 * 0.15 / 9.0).roundToDouble(),
+            cost: 35.0,
+          ),
+          FoodItemModel(
+            foodId: 'F002',
+            name: 'Hard-Boiled Egg with Calamansi',
+            category: 'Breakfast',
+            servings: 1.0,
+            servingUnit: '1 egg',
+            calories: (bCal * 0.35).roundToDouble(),
+            protein: (bCal * 0.35 * 0.50 / 4.0).roundToDouble(),
+            carbs: 1,
+            fat: (bCal * 0.35 * 0.45 / 9.0).roundToDouble(),
+            cost: 15.0,
+          ),
+        ];
+        break;
+      case 3:
+        // Variant 3: Greek Yogurt Parfait with Fresh Mango & Chia Seeds
+        breakfastItems = [
+          FoodItemModel(
+            foodId: 'F003',
+            name: 'Plain Greek Yogurt Parfait with Mango Slices & Chia Seeds',
+            category: 'Breakfast',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '200g bowl',
+            calories: (bCal * 0.65).roundToDouble(),
+            protein: (bCal * 0.65 * 0.40 / 4.0).roundToDouble(),
+            carbs: (bCal * 0.65 * 0.45 / 4.0).roundToDouble(),
+            fat: (bCal * 0.65 * 0.15 / 9.0).roundToDouble(),
+            cost: 45.0,
+          ),
+          FoodItemModel(
+            foodId: 'F002',
+            name: goal.contains('loss') ? 'Boiled Egg Whites' : 'Whole Boiled Egg',
+            category: 'Breakfast',
+            servings: 2,
+            servingUnit: '2 eggs',
+            calories: (bCal * 0.35).roundToDouble(),
+            protein: (bCal * 0.35 * 0.55 / 4.0).roundToDouble(),
+            carbs: 1,
+            fat: (bCal * 0.35 * 0.40 / 9.0).roundToDouble(),
+            cost: 20.0,
+          ),
+        ];
+        break;
+      case 0:
+      default:
+        // Variant 0: Classic Rolled Oats with Cinnamon & Eggs
+        breakfastItems = [
+          FoodItemModel(
+            foodId: 'F001',
+            name: goal.contains('muscle') ? 'Hearty Oatmeal with Banana & Peanut Butter' : 'Rolled Oats with Cinnamon & Chia Seeds',
+            category: 'Breakfast',
+            servings: 1.5,
+            servingUnit: '1 bowl',
+            calories: (bCal * 0.60).roundToDouble(),
+            protein: (bCal * 0.60 * 0.18 / 4.0).roundToDouble(),
+            carbs: (bCal * 0.60 * 0.65 / 4.0).roundToDouble(),
+            fat: 4.0,
+            cost: 30.0,
+          ),
+          FoodItemModel(
+            foodId: 'F002',
+            name: goal.contains('loss') ? 'Boiled Egg Whites with Spinach' : 'Whole Boiled Eggs',
+            category: 'Breakfast',
+            servings: (2 * scale).roundToDouble(),
+            servingUnit: '${(2 * scale).toInt().clamp(2, 4)} eggs',
+            calories: (bCal * 0.40).roundToDouble(),
+            protein: (bCal * 0.40 * 0.45 / 4.0).roundToDouble(),
+            carbs: 2,
+            fat: (bCal * 0.40 * 0.50 / 9.0).roundToDouble(),
+            cost: 25.0,
+          ),
+        ];
+        break;
     }
 
-    // Build Lunch
-    final lMainName = goal.contains('loss') ? 'Grilled Skinless Chicken Breast' : 'Grilled Chicken with Garlic Rice';
-    final lunchItems = [
-      FoodItemModel(
-        foodId: 'F008',
-        name: lMainName,
-        category: 'Lunch',
-        servings: (1.5 * scale).roundToDouble(),
-        servingUnit: '${(180 * scale).toInt()}g',
-        calories: (lCal * 0.55).roundToDouble(),
-        protein: (lCal * 0.55 * 0.75 / 4.0).roundToDouble(),
-        carbs: 2,
-        fat: 4.5,
-        cost: 65.0,
-      ),
-      FoodItemModel(
-        foodId: 'F009',
-        name: goal.contains('loss') ? 'Steamed Cauliflower & Brown Rice' : 'Steamed Brown Rice',
-        category: 'Lunch',
-        servings: (1.0 * scale).roundToDouble(),
-        servingUnit: '1 cup',
-        calories: (lCal * 0.30).roundToDouble(),
-        protein: 3.5,
-        carbs: (lCal * 0.30 * 0.85 / 4.0).roundToDouble(),
-        fat: 0.5,
-        cost: 15.0,
-      ),
-      FoodItemModel(
-        foodId: 'F011',
-        name: 'Steamed Broccoli, Carrots & Green Beans',
-        category: 'Lunch',
-        servings: 1.0,
-        servingUnit: '1 bowl',
-        calories: (lCal * 0.15).roundToDouble(),
-        protein: 4.0,
-        carbs: (lCal * 0.15 * 0.70 / 4.0).roundToDouble(),
-        fat: 0.5,
-        cost: 25.0,
-      ),
-    ];
+    // --- 2. BUILD LUNCH VARIETY ---
+    List<FoodItemModel> lunchItems;
+    switch (lVariant) {
+      case 1:
+        // Variant 1: Chicken Tinola with Brown Rice & Sayote/Malunggay
+        lunchItems = [
+          FoodItemModel(
+            foodId: 'F017',
+            name: 'Traditional Chicken Tinola (Lean Chicken & Malunggay Broth)',
+            category: 'Lunch',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '1 big bowl',
+            calories: (lCal * 0.55).roundToDouble(),
+            protein: (lCal * 0.55 * 0.65 / 4.0).roundToDouble(),
+            carbs: 6,
+            fat: (lCal * 0.55 * 0.25 / 9.0).roundToDouble(),
+            cost: 50.0,
+          ),
+          FoodItemModel(
+            foodId: 'F013',
+            name: 'Steamed Brown Rice',
+            category: 'Lunch',
+            servings: (1.0 * scale).roundToDouble(),
+            servingUnit: '1 cup',
+            calories: (lCal * 0.30).roundToDouble(),
+            protein: 3.5,
+            carbs: (lCal * 0.30 * 0.85 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 15.0,
+          ),
+          FoodItemModel(
+            foodId: 'F016',
+            name: 'Boiled Sweet Potato (Kamote) & Green Sayote',
+            category: 'Lunch',
+            servings: 1.0,
+            servingUnit: '1 serving',
+            calories: (lCal * 0.15).roundToDouble(),
+            protein: 2.5,
+            carbs: (lCal * 0.15 * 0.80 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 20.0,
+          ),
+        ];
+        break;
+      case 2:
+        // Variant 2: Tuna Flakes with Boiled Kamote & Sautéed Green Beans
+        lunchItems = [
+          FoodItemModel(
+            foodId: 'F015',
+            name: 'Chunk Light Tuna Flakes in Brine with Lemon',
+            category: 'Lunch',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '1.5 cans',
+            calories: (lCal * 0.50).roundToDouble(),
+            protein: (lCal * 0.50 * 0.80 / 4.0).roundToDouble(),
+            carbs: 0,
+            fat: 2.0,
+            cost: 45.0,
+          ),
+          FoodItemModel(
+            foodId: 'F016',
+            name: 'Boiled Sweet Potato (Kamote) Cubes',
+            category: 'Lunch',
+            servings: (1.2 * scale).roundToDouble(),
+            servingUnit: '${(150 * scale).toInt()}g',
+            calories: (lCal * 0.35).roundToDouble(),
+            protein: 3.0,
+            carbs: (lCal * 0.35 * 0.90 / 4.0).roundToDouble(),
+            fat: 0.3,
+            cost: 20.0,
+          ),
+          FoodItemModel(
+            foodId: 'F025',
+            name: 'Sautéed Green Beans with Garlic & Olive Oil',
+            category: 'Lunch',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (lCal * 0.15).roundToDouble(),
+            protein: 2.5,
+            carbs: (lCal * 0.15 * 0.60 / 4.0).roundToDouble(),
+            fat: (lCal * 0.15 * 0.30 / 9.0).roundToDouble(),
+            cost: 20.0,
+          ),
+        ];
+        break;
+      case 3:
+        // Variant 3: Monggo Guisado with Pan-Seared Firm Tofu & Rice
+        lunchItems = [
+          FoodItemModel(
+            foodId: 'F020',
+            name: 'Monggo Guisado with Malunggay & Spinach',
+            category: 'Lunch',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '1 bowl',
+            calories: (lCal * 0.45).roundToDouble(),
+            protein: (lCal * 0.45 * 0.40 / 4.0).roundToDouble(),
+            carbs: (lCal * 0.45 * 0.50 / 4.0).roundToDouble(),
+            fat: 3.0,
+            cost: 30.0,
+          ),
+          FoodItemModel(
+            foodId: 'F024',
+            name: 'Pan-Seared Firm Tofu with Garlic & Soy',
+            category: 'Lunch',
+            servings: (1.0 * scale).roundToDouble(),
+            servingUnit: '150g',
+            calories: (lCal * 0.25).roundToDouble(),
+            protein: (lCal * 0.25 * 0.55 / 4.0).roundToDouble(),
+            carbs: 4.0,
+            fat: (lCal * 0.25 * 0.35 / 9.0).roundToDouble(),
+            cost: 25.0,
+          ),
+          FoodItemModel(
+            foodId: 'F013',
+            name: 'Steamed Brown Rice',
+            category: 'Lunch',
+            servings: (1.0 * scale).roundToDouble(),
+            servingUnit: '1 cup',
+            calories: (lCal * 0.30).roundToDouble(),
+            protein: 3.5,
+            carbs: (lCal * 0.30 * 0.85 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 15.0,
+          ),
+        ];
+        break;
+      case 0:
+      default:
+        // Variant 0: Grilled Chicken Breast with Brown Rice & Veggies
+        lunchItems = [
+          FoodItemModel(
+            foodId: 'F011',
+            name: goal.contains('loss') ? 'Grilled Skinless Chicken Breast with Herbs' : 'Grilled Chicken with Garlic Brown Rice',
+            category: 'Lunch',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '${(180 * scale).toInt()}g',
+            calories: (lCal * 0.55).roundToDouble(),
+            protein: (lCal * 0.55 * 0.75 / 4.0).roundToDouble(),
+            carbs: 2,
+            fat: 4.5,
+            cost: 65.0,
+          ),
+          FoodItemModel(
+            foodId: 'F013',
+            name: goal.contains('loss') ? 'Steamed Cauliflower & Brown Rice' : 'Steamed Brown Rice',
+            category: 'Lunch',
+            servings: (1.0 * scale).roundToDouble(),
+            servingUnit: '1 cup',
+            calories: (lCal * 0.30).roundToDouble(),
+            protein: 3.5,
+            carbs: (lCal * 0.30 * 0.85 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 15.0,
+          ),
+          FoodItemModel(
+            foodId: 'F014',
+            name: 'Steamed Broccoli, Carrots & Green Beans',
+            category: 'Lunch',
+            servings: 1.0,
+            servingUnit: '1 bowl',
+            calories: (lCal * 0.15).roundToDouble(),
+            protein: 4.0,
+            carbs: (lCal * 0.15 * 0.70 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 25.0,
+          ),
+        ];
+        break;
+    }
 
-    // Build Dinner
-    final dinnerItems = [
-      FoodItemModel(
-        foodId: 'F014',
-        name: goal.contains('loss') ? 'Grilled Tilapia / Tuna Steak' : 'Lean Beef Stir-fry with Sweet Peppers',
-        category: 'Dinner',
-        servings: (1.5 * scale).roundToDouble(),
-        servingUnit: '${(160 * scale).toInt()}g',
-        calories: (dCal * 0.65).roundToDouble(),
-        protein: (dCal * 0.65 * 0.65 / 4.0).roundToDouble(),
-        carbs: 5,
-        fat: (dCal * 0.65 * 0.25 / 9.0).roundToDouble(),
-        cost: 75.0,
-      ),
-      FoodItemModel(
-        foodId: 'F013',
-        name: 'Roasted Sweet Potato Wedges',
-        category: 'Dinner',
-        servings: 1.0,
-        servingUnit: '${(120 * scale).toInt()}g',
-        calories: (dCal * 0.35).roundToDouble(),
-        protein: 3.0,
-        carbs: (dCal * 0.35 * 0.85 / 4.0).roundToDouble(),
-        fat: 0.5,
-        cost: 20.0,
-      ),
-    ];
+    // --- 3. BUILD DINNER VARIETY ---
+    List<FoodItemModel> dinnerItems;
+    switch (dVariant) {
+      case 1:
+        // Variant 1: Bistek Tagalog with Quinoa & Ginisang Kalabasa
+        dinnerItems = [
+          FoodItemModel(
+            foodId: 'F034',
+            name: 'Bistek Tagalog (Lean Sirloin Beef Strips with Onion Rings)',
+            category: 'Dinner',
+            servings: (1.4 * scale).roundToDouble(),
+            servingUnit: '${(150 * scale).toInt()}g',
+            calories: (dCal * 0.60).roundToDouble(),
+            protein: (dCal * 0.60 * 0.65 / 4.0).roundToDouble(),
+            carbs: 6,
+            fat: (dCal * 0.60 * 0.25 / 9.0).roundToDouble(),
+            cost: 75.0,
+          ),
+          FoodItemModel(
+            foodId: 'F026',
+            name: 'Steamed Quinoa & Brown Rice',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (dCal * 0.25).roundToDouble(),
+            protein: 3.5,
+            carbs: (dCal * 0.25 * 0.85 / 4.0).roundToDouble(),
+            fat: 1.0,
+            cost: 25.0,
+          ),
+          FoodItemModel(
+            foodId: 'F032',
+            name: 'Ginisang Kalabasa with Green Beans',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (dCal * 0.15).roundToDouble(),
+            protein: 3.0,
+            carbs: (dCal * 0.15 * 0.70 / 4.0).roundToDouble(),
+            fat: 1.5,
+            cost: 20.0,
+          ),
+        ];
+        break;
+      case 2:
+        // Variant 2: Baked Salmon Fillet or Grilled Bangus Milkfish
+        dinnerItems = [
+          FoodItemModel(
+            foodId: 'F023',
+            name: 'Baked Salmon Fillet (or Grilled Boneless Bangus)',
+            category: 'Dinner',
+            servings: (1.3 * scale).roundToDouble(),
+            servingUnit: '${(140 * scale).toInt()}g',
+            calories: (dCal * 0.65).roundToDouble(),
+            protein: (dCal * 0.65 * 0.60 / 4.0).roundToDouble(),
+            carbs: 0,
+            fat: (dCal * 0.65 * 0.35 / 9.0).roundToDouble(),
+            cost: 85.0,
+          ),
+          FoodItemModel(
+            foodId: 'F016',
+            name: 'Boiled Sweet Potato (Kamote) Slices',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '100g',
+            calories: (dCal * 0.20).roundToDouble(),
+            protein: 2.0,
+            carbs: (dCal * 0.20 * 0.90 / 4.0).roundToDouble(),
+            fat: 0.2,
+            cost: 15.0,
+          ),
+          FoodItemModel(
+            foodId: 'F014',
+            name: 'Steamed Broccoli & Carrots with Garlic',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (dCal * 0.15).roundToDouble(),
+            protein: 3.5,
+            carbs: (dCal * 0.15 * 0.70 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 20.0,
+          ),
+        ];
+        break;
+      case 3:
+        // Variant 3: Lean Ground Beef Stir-Fry with Sweet Peppers & Kamote
+        dinnerItems = [
+          FoodItemModel(
+            foodId: 'F022',
+            name: 'Lean Ground Beef Stir-Fry with Bell Peppers',
+            category: 'Dinner',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '${(150 * scale).toInt()}g',
+            calories: (dCal * 0.60).roundToDouble(),
+            protein: (dCal * 0.60 * 0.65 / 4.0).roundToDouble(),
+            carbs: 4,
+            fat: (dCal * 0.60 * 0.30 / 9.0).roundToDouble(),
+            cost: 70.0,
+          ),
+          FoodItemModel(
+            foodId: 'F013',
+            name: 'Roasted Sweet Potato Wedges',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '${(120 * scale).toInt()}g',
+            calories: (dCal * 0.25).roundToDouble(),
+            protein: 2.5,
+            carbs: (dCal * 0.25 * 0.85 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 20.0,
+          ),
+          FoodItemModel(
+            foodId: 'F025',
+            name: 'Sautéed Green Beans with Garlic',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (dCal * 0.15).roundToDouble(),
+            protein: 2.0,
+            carbs: (dCal * 0.15 * 0.70 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 18.0,
+          ),
+        ];
+        break;
+      case 0:
+      default:
+        // Variant 0: Pan-Seared Grilled Tilapia with Sweet Potato & Veggies
+        dinnerItems = [
+          FoodItemModel(
+            foodId: 'F029',
+            name: goal.contains('loss') ? 'Pan-Seared Grilled Tilapia Fillet' : 'Grilled Fish Steak with Garlic Pepper',
+            category: 'Dinner',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '${(160 * scale).toInt()}g',
+            calories: (dCal * 0.65).roundToDouble(),
+            protein: (dCal * 0.65 * 0.70 / 4.0).roundToDouble(),
+            carbs: 2,
+            fat: (dCal * 0.65 * 0.20 / 9.0).roundToDouble(),
+            cost: 55.0,
+          ),
+          FoodItemModel(
+            foodId: 'F013',
+            name: 'Roasted Sweet Potato Wedges',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '${(120 * scale).toInt()}g',
+            calories: (dCal * 0.25).roundToDouble(),
+            protein: 3.0,
+            carbs: (dCal * 0.25 * 0.85 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 20.0,
+          ),
+          FoodItemModel(
+            foodId: 'F025',
+            name: 'Stir-Fried Green Beans with Garlic',
+            category: 'Dinner',
+            servings: 1.0,
+            servingUnit: '1 cup',
+            calories: (dCal * 0.10).roundToDouble(),
+            protein: 2.0,
+            carbs: (dCal * 0.10 * 0.70 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 18.0,
+          ),
+        ];
+        break;
+    }
 
-    // Build Snack
-    final snackItems = [
-      FoodItemModel(
-        foodId: 'F020',
-        name: goal.contains('loss') ? 'Whey Isolate Shake with Water' : 'Whey Protein Shake with Milk & Banana',
-        category: 'Snack',
-        servings: 1.0,
-        servingUnit: '1 scoop (30g)',
-        calories: (sCal * 0.65).roundToDouble(),
-        protein: 26.0,
-        carbs: goal.contains('loss') ? 2.0 : 18.0,
-        fat: 1.5,
-        cost: 45.0,
-      ),
-      FoodItemModel(
-        foodId: 'F021',
-        name: 'Roasted Almonds & Walnuts',
-        category: 'Snack',
-        servings: 1.0,
-        servingUnit: '${(25 * scale).toInt()}g',
-        calories: (sCal * 0.35).roundToDouble(),
-        protein: 6.0,
-        carbs: 5.0,
-        fat: (sCal * 0.35 * 0.70 / 9.0).roundToDouble(),
-        cost: 25.0,
-      ),
-    ];
+    // --- 4. BUILD SNACK VARIETY ---
+    List<FoodItemModel> snackItems;
+    switch (sVariant) {
+      case 1:
+        // Variant 1: Boiled Saba Banana with Peanut Butter
+        snackItems = [
+          FoodItemModel(
+            foodId: 'F042',
+            name: 'Boiled Saba Banana',
+            category: 'Snack',
+            servings: (1.5 * scale).roundToDouble(),
+            servingUnit: '${(1.5 * scale).toInt().clamp(1, 3)} pcs',
+            calories: (sCal * 0.55).roundToDouble(),
+            protein: 2.0,
+            carbs: (sCal * 0.55 * 0.90 / 4.0).roundToDouble(),
+            fat: 0.5,
+            cost: 15.0,
+          ),
+          FoodItemModel(
+            foodId: 'F006',
+            name: 'Natural Roasted Peanut Butter Dip',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '1.5 tbsp',
+            calories: (sCal * 0.45).roundToDouble(),
+            protein: (sCal * 0.45 * 0.25 / 4.0).roundToDouble(),
+            carbs: 4.0,
+            fat: (sCal * 0.45 * 0.65 / 9.0).roundToDouble(),
+            cost: 18.0,
+          ),
+        ];
+        break;
+      case 2:
+        // Variant 2: Silken Taho & Mixed Nuts Trail Mix
+        snackItems = [
+          FoodItemModel(
+            foodId: 'F045',
+            name: 'Silken Taho (Protein Tofu with Light Arnibal)',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '1 cup (200ml)',
+            calories: (sCal * 0.50).roundToDouble(),
+            protein: (sCal * 0.50 * 0.35 / 4.0).roundToDouble(),
+            carbs: (sCal * 0.50 * 0.50 / 4.0).roundToDouble(),
+            fat: 2.0,
+            cost: 20.0,
+          ),
+          FoodItemModel(
+            foodId: 'F049',
+            name: 'Mixed Nuts Trail Mix (Almonds & Walnuts)',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '30g pack',
+            calories: (sCal * 0.50).roundToDouble(),
+            protein: 5.0,
+            carbs: 8.0,
+            fat: (sCal * 0.50 * 0.65 / 9.0).roundToDouble(),
+            cost: 30.0,
+          ),
+        ];
+        break;
+      case 3:
+        // Variant 3: Fresh Apple Slices with Cottage Cheese / Egg Whites
+        snackItems = [
+          FoodItemModel(
+            foodId: 'F038',
+            name: 'Fresh Fuji Apple Slices',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '1 medium apple',
+            calories: (sCal * 0.45).roundToDouble(),
+            protein: 1.0,
+            carbs: (sCal * 0.45 * 0.90 / 4.0).roundToDouble(),
+            fat: 0.3,
+            cost: 20.0,
+          ),
+          FoodItemModel(
+            foodId: 'F039',
+            name: 'Low-Fat Cottage Cheese / Hard-Boiled Egg Whites',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '100g',
+            calories: (sCal * 0.55).roundToDouble(),
+            protein: (sCal * 0.55 * 0.70 / 4.0).roundToDouble(),
+            carbs: 3.0,
+            fat: 1.5,
+            cost: 30.0,
+          ),
+        ];
+        break;
+      case 0:
+      default:
+        // Variant 0: Whey Protein Shake with Almonds & Walnuts
+        snackItems = [
+          FoodItemModel(
+            foodId: 'F020',
+            name: goal.contains('loss') ? 'Whey Isolate Shake with Water' : 'Whey Protein Shake with Low-Fat Milk',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '1 scoop (30g)',
+            calories: (sCal * 0.65).roundToDouble(),
+            protein: 26.0,
+            carbs: goal.contains('loss') ? 2.0 : 12.0,
+            fat: 1.5,
+            cost: 45.0,
+          ),
+          FoodItemModel(
+            foodId: 'F021',
+            name: 'Roasted Almonds & Walnuts',
+            category: 'Snack',
+            servings: 1.0,
+            servingUnit: '${(25 * scale).toInt()}g',
+            calories: (sCal * 0.35).roundToDouble(),
+            protein: 6.0,
+            carbs: 5.0,
+            fat: (sCal * 0.35 * 0.70 / 9.0).roundToDouble(),
+            cost: 25.0,
+          ),
+        ];
+        break;
+    }
 
     // Compute actual slot totals
     double computeSlotCal(List<FoodItemModel> items) => items.fold(0.0, (acc, item) => acc + item.calories);
@@ -971,7 +1399,7 @@ class RecommendationApiService {
     return MealPlanModel(
       id: 'meal_${DateTime.now().millisecondsSinceEpoch}',
       userId: user.id,
-      source: 'viscous_smart_nutrition',
+      source: 'vicious_smart_nutrition',
       totalCalories: totCal,
       targetCalories: cal,
       totalProtein: totProt,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/facility_hours_helper.dart';
 import '../../../data/datasources/local/local_cache_service.dart';
 import '../../../domain/entities/membership_entity.dart';
 import '../../../domain/repositories/membership_repository.dart';
@@ -26,10 +27,21 @@ class MembershipState {
   });
 
   AttendanceEntity? get activeAttendance {
-    return attendanceHistory.where((a) => a.checkOutTime == null).firstOrNull;
+    final now = DateTime.now();
+    return attendanceHistory.where((a) {
+      if (a.checkOutTime != null) return false;
+      final closingTime = DateTime(a.checkInTime.year, a.checkInTime.month, a.checkInTime.day, 23, 0);
+      if (now.isAfter(closingTime) || now.isAtSameMomentAs(closingTime)) {
+        return false;
+      }
+      return true;
+    }).firstOrNull;
   }
 
-  bool get isCurrentlyCheckedIn => activeAttendance != null;
+  bool get isCurrentlyCheckedIn {
+    if (!FacilityHoursHelper.isGymOpen()) return false;
+    return activeAttendance != null;
+  }
 
   MembershipState copyWith({
     MembershipEntity? membership,

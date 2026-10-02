@@ -20,7 +20,7 @@ class UserModel extends UserEntity {
     required super.createdAt,
     super.assignedCoachId,
     super.specialization,
-    super.maxClients = 8,
+    super.maxClients = 20,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json, [String? id]) {
@@ -55,7 +55,7 @@ class UserModel extends UserEntity {
           : DateTime.now(),
       assignedCoachId: json['assigned_coach_id']?.toString() ?? json['assignedCoachId']?.toString(),
       specialization: json['specialization']?.toString(),
-      maxClients: int.tryParse((json['max_clients'] ?? json['maxClients'] ?? 8).toString()) ?? 8,
+      maxClients: int.tryParse((json['max_clients'] ?? json['maxClients'] ?? 20).toString()) ?? 20,
     );
   }
 

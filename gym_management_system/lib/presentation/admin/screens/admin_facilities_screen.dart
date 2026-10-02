@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../data/models/facility_model.dart';
+import '../../../domain/entities/workout_plan_entity.dart';
+import '../../../domain/services/exercise_alternative_service.dart';
 import '../providers/facility_provider.dart';
 
 class AdminFacilitiesScreen extends ConsumerStatefulWidget {
@@ -41,22 +44,23 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
     final state = ref.watch(facilityNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.cardColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: context.titleColor),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Facilities & Inventory',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.titleColor,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         actions: [
+          const ThemeToggleButton(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             tooltip: 'Refresh',
@@ -112,7 +116,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
             gradient: LinearGradient(
               colors: [
                 AppColors.primary.withValues(alpha: 0.15),
-                AppColors.surfaceLight,
+                context.elevatedSurface,
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -135,10 +139,10 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Viscious Fitness Facility Zones',
+                    Text(
+                      'Vicious Fitness Facility Zones',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.titleColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -146,8 +150,8 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                     const SizedBox(height: 2),
                     Text(
                       'Total Capacity: ${state.facilities.fold(0, (s, f) => s + f.capacity)} Members across ${state.facilities.length} Dedicated Zones',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: context.subtitleColor,
                         fontSize: 11,
                       ),
                     ),
@@ -173,9 +177,9 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,8 +205,8 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                   children: [
                     Text(
                       fac.name,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -320,16 +324,16 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
         // KPI Status Counts Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: AppColors.surface,
+          color: context.cardColor,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildInventoryKpi('Total Units', '${state.equipment.length}', AppColors.textPrimary),
-              Container(width: 1, height: 28, color: AppColors.border),
+              _buildInventoryKpi('Total Units', '${state.equipment.length}', context.titleColor),
+              Container(width: 1, height: 28, color: context.borderLine),
               _buildInventoryKpi('Operational', '${state.operationalCount}', AppColors.success),
-              Container(width: 1, height: 28, color: AppColors.border),
+              Container(width: 1, height: 28, color: context.borderLine),
               _buildInventoryKpi('Maintenance', '${state.maintenanceCount}', AppColors.warning),
-              Container(width: 1, height: 28, color: AppColors.border),
+              Container(width: 1, height: 28, color: context.borderLine),
               _buildInventoryKpi('Out of Order', '${state.outOfOrderCount}', AppColors.error),
             ],
           ),
@@ -338,27 +342,31 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
         // Filter Bar (Category & Status)
         Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-          color: AppColors.surface,
+          color: context.cardColor,
           child: Column(
             children: [
               // Search input
               TextField(
                 onChanged: (v) =>
                     ref.read(facilityNotifierProvider.notifier).setSearchQuery(v),
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                style: TextStyle(color: context.titleColor, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Search equipment by name or serial...',
                   hintStyle:
-                      const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      TextStyle(color: context.mutedColor, fontSize: 12),
                   prefixIcon:
-                      const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+                      Icon(Icons.search, size: 18, color: context.mutedColor),
                   filled: true,
-                  fillColor: AppColors.surfaceLight,
+                  fillColor: context.elevatedSurface,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: context.borderLine),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: context.borderLine),
                   ),
                 ),
               ),
@@ -381,9 +389,10 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                         selected: selected,
                         label: Text(cat, style: const TextStyle(fontSize: 11)),
                         selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.surfaceLight,
+                        backgroundColor: context.elevatedSurface,
+                        side: BorderSide(color: selected ? AppColors.primary : context.borderLine),
                         labelStyle: TextStyle(
-                          color: selected ? Colors.black : AppColors.textPrimary,
+                          color: selected ? Colors.black : context.titleColor,
                           fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                         ),
                         onSelected: (_) => ref
@@ -398,7 +407,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
           ),
         ),
 
-        const Divider(color: AppColors.border, height: 1),
+        Divider(color: context.borderLine, height: 1),
 
         // Equipment List
         Expanded(
@@ -409,12 +418,12 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                     children: [
                       Icon(Icons.inventory_2_outlined,
                           size: 48,
-                          color: AppColors.textMuted.withValues(alpha: 0.5)),
+                          color: context.mutedColor.withValues(alpha: 0.5)),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'No equipment matching filter',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.titleColor,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -459,21 +468,25 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
   }
 
   Widget _buildEquipmentCard(BuildContext context, EquipmentModel item) {
-    final statusColor = item.isOperational
-        ? AppColors.success
-        : (item.isUnderMaintenance ? AppColors.warning : AppColors.error);
+    final statusColor = item.isOccupied
+        ? AppColors.warning
+        : (item.isOperational
+            ? AppColors.success
+            : (item.isUnderMaintenance ? AppColors.accentCyan : AppColors.error));
 
-    final statusText = item.isOperational
-        ? 'OPERATIONAL'
-        : (item.isUnderMaintenance ? 'MAINTENANCE' : 'OUT OF ORDER');
+    final statusText = item.isOccupied
+        ? 'OCCUPIED (IN USE)'
+        : (item.isOperational
+            ? 'OPERATIONAL'
+            : (item.isUnderMaintenance ? 'MAINTENANCE' : 'OUT OF ORDER'));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.borderLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,8 +499,8 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                   children: [
                     Text(
                       item.name,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -546,13 +559,13 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
 
           Row(
             children: [
-              const Icon(Icons.place_rounded, size: 13, color: AppColors.textMuted),
+              Icon(Icons.place_rounded, size: 13, color: context.mutedColor),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   item.facilityName,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: context.subtitleColor,
                     fontSize: 11,
                   ),
                 ),
@@ -566,7 +579,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
             children: [
               Text(
                 'Maintained: ${DateFormat('MMM dd, yyyy').format(item.lastMaintained)}',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                style: TextStyle(color: context.mutedColor, fontSize: 10),
               ),
               Text(
                 'Next Due: ${DateFormat('MMM dd, yyyy').format(item.nextMaintenanceDate)}',
@@ -584,8 +597,9 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: context.elevatedSurface,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: context.borderLine),
               ),
               child: Text(
                 'Note: ${item.notes!}',
@@ -634,33 +648,68 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                 ),
               ),
               const SizedBox(width: 8),
+              if (item.isOccupied) ...[
+                InkWell(
+                  onTap: () => _showAiAlternativesPreview(context, item),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded, size: 12, color: AppColors.warning),
+                        SizedBox(width: 4),
+                        Text(
+                          'AI Member Alts',
+                          style: TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               PopupMenuButton<String>(
+                color: context.cardColor,
                 onSelected: (val) {
                   ref
                       .read(facilityNotifierProvider.notifier)
                       .updateEquipmentStatus(item.id, val);
                 },
                 itemBuilder: (ctx) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'operational',
-                    child: Text('Mark Operational (Active)'),
+                    child: Text('Mark Operational (Available)', style: TextStyle(color: context.titleColor)),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
+                    value: 'occupied',
+                    child: Text('Mark Fully Occupied (In-Use)', style: TextStyle(color: context.titleColor)),
+                  ),
+                  PopupMenuItem(
                     value: 'under_maintenance',
-                    child: Text('Set Under Maintenance'),
+                    child: Text('Set Under Maintenance', style: TextStyle(color: context.titleColor)),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'out_of_order',
-                    child: Text('Mark Out of Order'),
+                    child: Text('Mark Out of Order', style: TextStyle(color: context.titleColor)),
                   ),
                 ],
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: context.elevatedSurface,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.borderLine),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -691,20 +740,20 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.cardColor,
           title: Text(
             'Delete ${item.name}?',
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            style: TextStyle(color: context.titleColor, fontSize: 16),
           ),
           content: Text(
             'Are you sure you want to remove "${item.name}" (${item.serialNumber}) from the gym equipment inventory?',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: context.subtitleColor, fontSize: 13),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary)),
+              child: Text('Cancel',
+                  style: TextStyle(color: context.subtitleColor)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -719,7 +768,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('${item.name} removed from inventory'),
-                    backgroundColor: AppColors.surfaceLight,
+                    backgroundColor: context.cardColor,
                   ),
                 );
               },
@@ -736,17 +785,17 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.cardColor,
           title: Text(
             'Update Status for ${fac.name}',
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            style: TextStyle(color: context.titleColor, fontSize: 16),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
                 leading: const Icon(Icons.check_circle_rounded, color: AppColors.success),
-                title: const Text('Open (Normal Operation)'),
+                title: Text('Open (Normal Operation)', style: TextStyle(color: context.titleColor)),
                 onTap: () {
                   ref
                       .read(facilityNotifierProvider.notifier)
@@ -756,7 +805,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.cleaning_services_rounded, color: AppColors.accentCyan),
-                title: const Text('Cleaning / Sanitizing'),
+                title: Text('Cleaning / Sanitizing', style: TextStyle(color: context.titleColor)),
                 onTap: () {
                   ref
                       .read(facilityNotifierProvider.notifier)
@@ -766,7 +815,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.build_rounded, color: AppColors.warning),
-                title: const Text('Maintenance Work'),
+                title: Text('Maintenance Work', style: TextStyle(color: context.titleColor)),
                 onTap: () {
                   ref
                       .read(facilityNotifierProvider.notifier)
@@ -776,7 +825,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.block_rounded, color: AppColors.error),
-                title: const Text('Closed'),
+                title: Text('Closed', style: TextStyle(color: context.titleColor)),
                 onTap: () {
                   ref
                       .read(facilityNotifierProvider.notifier)
@@ -805,10 +854,10 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.surface,
-              title: const Text(
+              backgroundColor: context.cardColor,
+              title: Text(
                 'Add Equipment Unit',
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+                style: TextStyle(color: context.titleColor, fontSize: 16),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -816,26 +865,34 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                   children: [
                     TextField(
                       controller: nameCtrl,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: context.titleColor),
+                      decoration: InputDecoration(
                         labelText: 'Equipment Name',
+                        labelStyle: TextStyle(color: context.mutedColor),
                         hintText: 'e.g. Olympic Incline Bench',
+                        hintStyle: TextStyle(color: context.mutedColor),
                       ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: serialCtrl,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: context.titleColor),
+                      decoration: InputDecoration(
                         labelText: 'Serial / Inventory Number',
+                        labelStyle: TextStyle(color: context.mutedColor),
                         hintText: 'e.g. VF-FW-2024-004',
+                        hintStyle: TextStyle(color: context.mutedColor),
                       ),
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedCategory,
-                      dropdownColor: AppColors.surfaceLight,
-                      decoration: const InputDecoration(labelText: 'Category'),
+                      dropdownColor: context.cardColor,
+                      style: TextStyle(color: context.titleColor),
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        labelStyle: TextStyle(color: context.mutedColor),
+                      ),
                       items: [
                         'Cardio',
                         'Strength',
@@ -844,7 +901,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                         'Recovery'
                       ]
                           .map((c) =>
-                              DropdownMenuItem(value: c, child: Text(c)))
+                              DropdownMenuItem(value: c, child: Text(c, style: TextStyle(color: context.titleColor))))
                           .toList(),
                       onChanged: (v) =>
                           setDialogState(() => selectedCategory = v ?? 'Cardio'),
@@ -852,12 +909,15 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedFacilityId,
-                      dropdownColor: AppColors.surfaceLight,
-                      decoration:
-                          const InputDecoration(labelText: 'Facility Zone'),
+                      dropdownColor: context.cardColor,
+                      style: TextStyle(color: context.titleColor),
+                      decoration: InputDecoration(
+                        labelText: 'Facility Zone',
+                        labelStyle: TextStyle(color: context.mutedColor),
+                      ),
                       items: facilities
                           .map((f) =>
-                              DropdownMenuItem(value: f.id, child: Text(f.name)))
+                              DropdownMenuItem(value: f.id, child: Text(f.name, style: TextStyle(color: context.titleColor))))
                           .toList(),
                       onChanged: (v) => setDialogState(
                           () => selectedFacilityId = v ?? facilities.first.id),
@@ -868,7 +928,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+                  child: Text('Cancel', style: TextStyle(color: context.subtitleColor)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -923,5 +983,95 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
       default:
         return Icons.location_on_rounded;
     }
+  }
+
+  void _showAiAlternativesPreview(BuildContext context, EquipmentModel item) {
+    final service = ExerciseAlternativeService();
+    final dummyExercise = ExerciseEntity(
+      name: item.name,
+      muscleGroup: item.category == 'Cardio'
+          ? 'Cardiovascular'
+          : (item.name.toLowerCase().contains('leg') ? 'Quadriceps' : 'Full Body'),
+      sets: '3-4',
+      reps: '10-12',
+      restSec: 60,
+      equipment: item.name,
+    );
+    final alternatives = service.getAlternatives(exercise: dummyExercise);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: context.cardColor,
+          title: Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Member AI Alternatives: ${item.name}',
+                  style: TextStyle(color: context.titleColor, fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: alternatives.length,
+              separatorBuilder: (_, __) => const Divider(height: 16),
+              itemBuilder: (ctx, idx) {
+                final alt = alternatives[idx];
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            alt.alternativeName,
+                            style: TextStyle(color: context.titleColor, fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${alt.matchPercentage}% Match',
+                            style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Equip: ${alt.alternativeEquipment} • Target: ${alt.muscleGroup}',
+                      style: TextStyle(color: context.subtitleColor, fontSize: 11),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alt.aiRationale,
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

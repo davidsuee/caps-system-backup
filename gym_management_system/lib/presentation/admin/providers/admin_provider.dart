@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/membership_model.dart';
+import '../../../data/models/walk_in_record_model.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/membership_entity.dart';
 import '../../../domain/entities/trainer_assignment_entity.dart';
@@ -21,6 +22,7 @@ class AdminState {
   final List<UserModel> coaches;
   final List<MembershipModel> memberships;
   final List<AttendanceModel> attendance;
+  final List<WalkInRecordModel> walkIns;
   final AdminKpiData? kpi;
   final String searchQuery;
   final AssignmentOptimizationResult? lastOptimizationResult;
@@ -32,6 +34,7 @@ class AdminState {
     this.coaches = const [],
     this.memberships = const [],
     this.attendance = const [],
+    this.walkIns = const [],
     this.kpi,
     this.searchQuery = '',
     this.lastOptimizationResult,
@@ -90,6 +93,7 @@ class AdminState {
     List<UserModel>? coaches,
     List<MembershipModel>? memberships,
     List<AttendanceModel>? attendance,
+    List<WalkInRecordModel>? walkIns,
     AdminKpiData? kpi,
     String? searchQuery,
     AssignmentOptimizationResult? lastOptimizationResult,
@@ -101,6 +105,7 @@ class AdminState {
       coaches: coaches ?? this.coaches,
       memberships: memberships ?? this.memberships,
       attendance: attendance ?? this.attendance,
+      walkIns: walkIns ?? this.walkIns,
       kpi: kpi ?? this.kpi,
       searchQuery: searchQuery ?? this.searchQuery,
       lastOptimizationResult: lastOptimizationResult ?? this.lastOptimizationResult,
@@ -187,12 +192,14 @@ class AdminNotifier extends Notifier<AdminState> {
       final kpi = _computeKpiMetrics(memberships, members, attendance);
 
       if (!ref.mounted) return;
+      final walkIns = LocalCacheService().getAllWalkInRecords();
       state = state.copyWith(
         isLoading: false,
         members: members,
         coaches: coaches,
         memberships: memberships,
         attendance: attendance,
+        walkIns: walkIns,
         kpi: kpi,
       );
     } catch (e) {
@@ -202,6 +209,7 @@ class AdminNotifier extends Notifier<AdminState> {
       final cachedCoaches = LocalCacheService().getUsersByRole(UserRole.coach);
       final cachedMemberships = LocalCacheService().getAllMemberships();
       final cachedAttendance = LocalCacheService().getAllAttendance();
+      final cachedWalkIns = LocalCacheService().getAllWalkInRecords();
       final kpi = _computeKpiMetrics(cachedMemberships, cachedMembers, cachedAttendance);
 
       state = state.copyWith(
@@ -210,6 +218,7 @@ class AdminNotifier extends Notifier<AdminState> {
         coaches: cachedCoaches.isNotEmpty ? cachedCoaches : state.coaches,
         memberships: cachedMemberships.isNotEmpty ? cachedMemberships : state.memberships,
         attendance: cachedAttendance.isNotEmpty ? cachedAttendance : state.attendance,
+        walkIns: cachedWalkIns.isNotEmpty ? cachedWalkIns : state.walkIns,
         kpi: kpi,
         errorMessage: e.toString(),
       );
@@ -266,6 +275,49 @@ class AdminNotifier extends Notifier<AdminState> {
         amount: amount,
         durationDays: durationDays,
       );
+      await loadDashboard();
+      return true;
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(errorMessage: e.toString());
+      }
+      return false;
+    }
+  }
+
+  Future<bool> logWalkIn({
+    required String guestName,
+    String? contactNumber,
+    double amountPaid = 150.0,
+    double? amount,
+    String paymentMethod = 'Cash at Counter',
+    String? notes,
+  }) async {
+    try {
+      final actualAmount = amount ?? amountPaid;
+      final record = WalkInRecordModel(
+        id: 'walkin_${DateTime.now().millisecondsSinceEpoch}',
+        guestName: guestName,
+        contactNumber: contactNumber,
+        amountPaid: actualAmount,
+        paymentMethod: paymentMethod,
+        checkInTime: DateTime.now(),
+        notes: notes,
+      );
+      LocalCacheService().logWalkInRecord(record);
+      await loadDashboard();
+      return true;
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(errorMessage: e.toString());
+      }
+      return false;
+    }
+  }
+
+  Future<bool> checkOutWalkIn(String walkInId) async {
+    try {
+      LocalCacheService().checkOutWalkInRecord(walkInId);
       await loadDashboard();
       return true;
     } catch (e) {
@@ -379,6 +431,22 @@ class AdminNotifier extends Notifier<AdminState> {
   }) async {
     try {
       await _repo.assignMemberToCoach(memberId: memberId, coachId: coachId);
+      await loadDashboard();
+      return true;
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(errorMessage: e.toString());
+      }
+      return false;
+    }
+  }
+
+  Future<bool> updateCoachCapacity({
+    required String coachId,
+    required int maxClients,
+  }) async {
+    try {
+      await _repo.updateCoachCapacity(coachId: coachId, maxClients: maxClients);
       await loadDashboard();
       return true;
     } catch (e) {

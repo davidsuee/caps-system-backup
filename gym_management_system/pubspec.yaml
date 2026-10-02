@@ -1,5 +1,5 @@
 name: gym_management_system
-description: VISCOUS Gym Management and Recommendation System
+description: VICIOUS Gym Management and Recommendation System
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -32,3 +32,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/

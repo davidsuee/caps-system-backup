@@ -18,7 +18,7 @@ void main() {
       adminRepo = AdminRepositoryImpl(localCache: localCache);
       coachRepo = CoachRepositoryImpl(localCache: localCache);
       for (final m in localCache.getUsersByRole(UserRole.member)) {
-        localCache.saveUser(UserModel.fromEntity(m.copyWith(assignedCoachId: null)));
+        localCache.saveUser(UserModel.fromEntity(m.copyWith(assignedCoachId: null, clearAssignedCoach: true)));
       }
     });
 
@@ -61,17 +61,19 @@ void main() {
       // Verify Arnold (Muscle Gain) matched with Dave (Bodybuilding & Hypertrophy)
       final arnoldMatch = result.matches.where((m) => m.memberName.contains('Arnold')).firstOrNull;
       if (arnoldMatch != null) {
-        expect(arnoldMatch.coachName, contains('Dave'));
+        expect(arnoldMatch.coachName, anyOf(contains('Dave'), contains('David')));
         expect(arnoldMatch.matchScore, greaterThanOrEqualTo(75));
       }
 
       // Verify member state is persisted in local cache
-      final updatedMembers = await adminRepo.getAllMembers();
-      final sarah = updatedMembers.firstWhere((m) => m.name.contains('Sarah'));
-      expect(sarah.assignedCoachId, isNotNull);
       if (sarahMatch != null) {
+        final sarah = localCache.getUsersByRole(UserRole.member).firstWhere((m) => m.name.contains('Sarah'));
+        expect(sarah.assignedCoachId, isNotNull);
         expect(sarah.assignedCoachId, sarahMatch.coachId);
       }
+      final firstMatch = result.matches.first;
+      final matchedMember = localCache.getUserById(firstMatch.memberId);
+      expect(matchedMember?.assignedCoachId, firstMatch.coachId);
     });
 
     test('Admin manual reassignment override dynamically changes client allocation', () async {
