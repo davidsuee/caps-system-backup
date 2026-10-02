@@ -123,7 +123,9 @@ class RecommendationApiService {
 
     final wt = user.weightKg;
 
-    // 1. Determine split & day-specific exercises based on Membership + Goal + Weight
+    final isBeginner = user.experienceLevel.toLowerCase() == 'beginner';
+
+    // 1. Determine split & day-specific exercises based on Membership + Experience + Goal + Weight
     if (isDayPass) {
       split = '1-Day Full Body Athletic Foundation (Day Pass)';
       routineSummary = 'High-yield full-body conditioning session designed for Day Pass walk-ins. Combines compound free weights, unilateral movements, and machines in a single comprehensive visit.';
@@ -199,16 +201,168 @@ class RecommendationApiService {
           dayTag: 'Day 1: Full Body',
         ),
         const ExerciseModel(
-          name: 'Incline Treadmill Burnout or Rower',
+          name: 'Incline Treadmill Burnout',
           muscleGroup: 'Cardiovascular & Core',
           sets: '1',
           reps: '15 mins',
           restSec: 0,
-          equipment: 'Treadmill / Rower',
+          equipment: 'Treadmill',
           instructions: 'Cardio Finish: Maintain steady aerobic heart rate (Zone 2) to finalize session.',
           dayTag: 'Day 1: Full Body',
         ),
       ];
+    } else if (isBeginner) {
+      if (goal.contains('loss')) {
+        split = 'Full-Body Conditioning (Beginner • ${wt.toInt()}kg)';
+        routineSummary = 'Foundational high-repetition metabolic full-body routine designed for beginner fat loss and cardiovascular foundation. Emphasizes guided machine stability and core control (12-15 reps, 45-60s rest).';
+        exercises = [
+          const ExerciseModel(
+            name: 'Leg Press Machine',
+            muscleGroup: 'Quadriceps & Glutes',
+            sets: '3',
+            reps: '12-15',
+            restSec: 60,
+            equipment: 'Leg Press',
+            instructions: 'Machine: Safe controlled leg drive eliminating axial spinal compression.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Machine Chest Press',
+            muscleGroup: 'Pectorals (Chest)',
+            sets: '3',
+            reps: '12-15',
+            restSec: 60,
+            equipment: 'Chest Press Machine',
+            instructions: 'Machine: Guided pressing motion to develop mind-muscle chest contraction safely.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Lat Pulldown Machine (Neutral Grip)',
+            muscleGroup: 'Lats & Upper Back',
+            sets: '3',
+            reps: '12-15',
+            restSec: 60,
+            equipment: 'Cable Machine',
+            instructions: 'Machine: Controlled vertical pull building upper back strength and posture.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Seated Dumbbell Shoulder Press',
+            muscleGroup: 'Deltoids & Shoulders',
+            sets: '3',
+            reps: '12',
+            restSec: 60,
+            equipment: 'Dumbbells & Bench',
+            instructions: 'Free Weight: Back-supported overhead press for shoulder stability.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Dumbbell Romanian Deadlift (RDL)',
+            muscleGroup: 'Hamstrings & Glutes',
+            sets: '3',
+            reps: '12',
+            restSec: 60,
+            equipment: 'Dumbbells',
+            instructions: 'Free Weight Compound: Foundational hip hinge with light dumbbells.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Standard Elbow Plank',
+            muscleGroup: 'Core Stability',
+            sets: '3',
+            reps: '30-45 sec',
+            restSec: 45,
+            equipment: 'Mat',
+            instructions: 'Core: Isometric anterior core bracing with neutral spine.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Incline Treadmill Brisk Walk',
+            muscleGroup: 'Cardiovascular',
+            sets: '1',
+            reps: '15 mins',
+            restSec: 0,
+            equipment: 'Treadmill',
+            instructions: 'Cardio Finish: Low-impact Zone 2 fat oxidation and aerobic base building.',
+            dayTag: 'Day 1: Full Body',
+          ),
+        ];
+      } else {
+        split = 'Full-Body Foundation (Beginner • ${wt.toInt()}kg)';
+        routineSummary = 'Comprehensive full-body foundation designed for beginner neuromuscular adaptation. Uses guided compound lifts and safe machines to build baseline motor control before advancing to isolated body-part splits.';
+        exercises = [
+          const ExerciseModel(
+            name: 'Goblet Squats or Leg Press',
+            muscleGroup: 'Quadriceps & Glutes',
+            sets: '3',
+            reps: '10-12',
+            restSec: 75,
+            equipment: 'Dumbbell / Leg Press',
+            instructions: 'High Stability: Upright torso squat mechanics loading quads and hips safely.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Flat Dumbbell Chest Press',
+            muscleGroup: 'Pectorals (Chest)',
+            sets: '3',
+            reps: '10-12',
+            restSec: 60,
+            equipment: 'Dumbbells & Bench',
+            instructions: 'Free Weight Compound: Natural wrist path protecting rotator cuffs while building pectoral foundation.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Lat Pulldown Machine (Neutral Grip)',
+            muscleGroup: 'Lats & Upper Back',
+            sets: '3',
+            reps: '12',
+            restSec: 60,
+            equipment: 'Cable Machine',
+            instructions: 'Machine: Controlled vertical pull building upper back strength and posture.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Seated Dumbbell Shoulder Press',
+            muscleGroup: 'Deltoids & Shoulders',
+            sets: '3',
+            reps: '10-12',
+            restSec: 60,
+            equipment: 'Dumbbells & Bench',
+            instructions: 'Free Weight: Back-supported vertical press for overhead stability.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Dumbbell Romanian Deadlift (RDL)',
+            muscleGroup: 'Hamstrings & Glutes',
+            sets: '3',
+            reps: '10-12',
+            restSec: 60,
+            equipment: 'Dumbbells',
+            instructions: 'Free Weight Compound: Hinge strictly at hips maintaining neutral lumbar spine.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Standing DB Bicep Curls & Cable Pushdown',
+            muscleGroup: 'Arms (Biceps & Triceps)',
+            sets: '2',
+            reps: '12',
+            restSec: 45,
+            equipment: 'Dumbbells & Cable',
+            instructions: 'Isolation Circuit: Basic arm conditioning finishing circuit.',
+            dayTag: 'Day 1: Full Body',
+          ),
+          const ExerciseModel(
+            name: 'Standard Elbow Plank',
+            muscleGroup: 'Core Stability',
+            sets: '3',
+            reps: '30-45 sec',
+            restSec: 45,
+            equipment: 'Mat',
+            instructions: 'Core: Isometric anti-extension core stabilization.',
+            dayTag: 'Day 1: Full Body',
+          ),
+        ];
+      }
     } else if (goal.contains('muscle') || goal.contains('gain')) {
       if (wt < 70) {
         split = 'Push-Pull-Legs (Phase 1: Hypertrophy Base • ${wt.toInt()}kg)';
@@ -504,13 +658,13 @@ class RecommendationApiService {
           dayTag: 'Day 1: Aerobic Base',
         ),
         const ExerciseModel(
-          name: 'Rowing Machine Sprints',
+          name: 'Row Machine Conditioning Sprints',
           muscleGroup: 'Full Body Endurance',
           sets: '5',
           reps: '250m',
           restSec: 60,
-          equipment: 'Rower',
-          instructions: 'Ergometer: Full-body power endurance with legs, back, and cardiovascular synchronization.',
+          equipment: 'Row Machine',
+          instructions: 'Row Machine: Full-body power endurance with legs, back, and cardiovascular synchronization.',
           dayTag: 'Day 1: Aerobic Base',
         ),
 

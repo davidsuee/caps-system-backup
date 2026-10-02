@@ -385,7 +385,7 @@ class MembershipTiersScreen extends StatelessWidget {
       },
       {
         'q': 'Can I schedule 1-on-1 sessions with a coach?',
-        'a': 'Yes! Active members are paired with certified coaches who have open capacity (max 20 clients per coach). Training sessions can be booked directly in the app between 8:00 AM and 11:00 PM.',
+        'a': 'Yes! Active members are paired with dedicated coaches based on their primary fitness goals. Training sessions can be booked directly in the app.',
       },
       {
         'q': 'Are there any hidden fees or cancellation penalties?',

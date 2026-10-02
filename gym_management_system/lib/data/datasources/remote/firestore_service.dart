@@ -137,6 +137,22 @@ class FirestoreService {
     }
   }
 
+  Future<void> _restDeleteDoc(String collection, String docId) async {
+    final cleanDocId = docId.trim();
+    if (cleanDocId.isEmpty) return;
+    final url = '$_restBaseUrl/$collection/$cleanDocId?key=$_apiKey';
+    final headers = <String, dynamic>{'Content-Type': 'application/json'};
+    final idToken = FirebaseAuthService.lastAuthenticatedUser?.idToken;
+    if (idToken != null) {
+      headers['Authorization'] = 'Bearer $idToken';
+    }
+    try {
+      await _dio.delete(url, options: Options(headers: headers));
+    } catch (e) {
+      debugPrint('[Firestore REST] Error deleting $collection/$cleanDocId: $e');
+    }
+  }
+
   Future<Map<String, dynamic>?> _restGetDoc(String collection, String docId) async {
     final url = '$_restBaseUrl/$collection/$docId?key=$_apiKey';
     final headers = <String, dynamic>{'Content-Type': 'application/json'};
@@ -237,6 +253,19 @@ class FirestoreService {
     } catch (e) {
       debugPrint('[Firestore] Native saveUser failed: $e. Falling back to REST.');
       await _restPatchDoc('users', user.id, user.toJson());
+    }
+  }
+
+  Future<void> deleteUser(String uid) async {
+    if (_isWindowsDesktop) {
+      await _restDeleteDoc('users', uid);
+      return;
+    }
+    try {
+      await _db.collection('users').doc(uid).delete();
+    } catch (e) {
+      debugPrint('[Firestore] Native deleteUser failed: $e. Falling back to REST.');
+      await _restDeleteDoc('users', uid);
     }
   }
 

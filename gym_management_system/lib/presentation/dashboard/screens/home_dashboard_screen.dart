@@ -1205,7 +1205,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Operating Hours: 6:00 AM – 11:00 PM Daily. Progress logging is locked while closed.',
+                    'Operating Hours: 8:00 AM – 11:00 PM Daily. Progress logging is locked while closed.',
                     style: TextStyle(color: context.titleColor, fontSize: 11),
                   ),
                 ],

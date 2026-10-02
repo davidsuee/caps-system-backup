@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/app_feedback_helper.dart';
 import '../../../domain/entities/workout_plan_entity.dart';
 import '../../../domain/services/exercise_alternative_service.dart';
 import '../../admin/providers/facility_provider.dart';
@@ -31,6 +32,10 @@ class ExerciseCard extends ConsumerWidget {
       facilities: facilityState.facilities,
     );
     final isOccupied = occupancyNotice != null;
+    final isUnderMaintenance = alternativeService.isEquipmentUnderMaintenance(
+      exercise,
+      equipment: facilityState.equipment,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -56,15 +61,32 @@ class ExerciseCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                onPressed: onToggle,
-                tooltip: isLocked ? (lockReason ?? 'Progress checking locked') : null,
+                onPressed: () {
+                  if (isUnderMaintenance) {
+                    AppFeedbackHelper.showWarning(
+                      context,
+                      title: 'UNDER MAINTENANCE',
+                      message: 'This equipment is currently under maintenance. Please select an alternative exercise.',
+                    );
+                    AiExerciseAlternativeModal.show(context, exercise: exercise);
+                    return;
+                  }
+                  onToggle();
+                },
+                tooltip: isUnderMaintenance
+                    ? 'Equipment under maintenance (Alternative available)'
+                    : (isLocked ? (lockReason ?? 'Progress checking locked') : null),
                 icon: Icon(
                   exercise.isCompleted
                       ? Icons.check_circle_rounded
-                      : (isLocked ? Icons.lock_outline_rounded : Icons.radio_button_unchecked_rounded),
+                      : (isUnderMaintenance
+                          ? Icons.build_rounded
+                          : (isLocked ? Icons.lock_outline_rounded : Icons.radio_button_unchecked_rounded)),
                   color: exercise.isCompleted
                       ? AppColors.primary
-                      : (isLocked ? context.mutedColor.withValues(alpha: 0.6) : context.mutedColor),
+                      : (isUnderMaintenance
+                          ? AppColors.warning
+                          : (isLocked ? context.mutedColor.withValues(alpha: 0.6) : context.mutedColor)),
                   size: 26,
                 ),
               ),
@@ -101,15 +123,18 @@ class ExerciseCard extends ConsumerWidget {
                                 color: AppColors.warning.withValues(alpha: 0.4),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.fmd_bad_rounded,
-                                    size: 11, color: AppColors.warning),
-                                SizedBox(width: 3),
+                                Icon(
+                                  isUnderMaintenance ? Icons.build_rounded : Icons.fmd_bad_rounded,
+                                  size: 11,
+                                  color: AppColors.warning,
+                                ),
+                                const SizedBox(width: 3),
                                 Text(
-                                  'Machine Busy',
-                                  style: TextStyle(
+                                  isUnderMaintenance ? 'Under Maintenance' : 'Machine Busy',
+                                  style: const TextStyle(
                                     color: AppColors.warning,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
@@ -280,7 +305,9 @@ class ExerciseCard extends ConsumerWidget {
             child: Row(
               children: [
                 Icon(
-                  isOccupied ? Icons.fmd_bad_rounded : Icons.psychology_outlined,
+                  isUnderMaintenance
+                      ? Icons.build_rounded
+                      : (isOccupied ? Icons.fmd_bad_rounded : Icons.psychology_outlined),
                   size: 15,
                   color: isOccupied ? AppColors.warning : AppColors.primary,
                 ),
@@ -306,28 +333,30 @@ class ExerciseCard extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      gradient: isOccupied
-                          ? const LinearGradient(
-                              colors: [AppColors.warning, Colors.amber],
-                            )
-                          : const LinearGradient(
-                              colors: [AppColors.primary, AppColors.accent],
-                            ),
+                      color: isOccupied
+                          ? AppColors.warning.withValues(alpha: 0.15)
+                          : AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isOccupied ? AppColors.warning : AppColors.primary,
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.auto_awesome_rounded,
-                          size: 12,
-                          color: isOccupied ? Colors.black : Colors.black,
+                          size: 13,
+                          color: isOccupied ? AppColors.warning : AppColors.primary,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 5),
                         Text(
-                          isOccupied ? 'Get AI Alternative' : 'AI Alternative',
-                          style: const TextStyle(
-                            color: Colors.black,
+                          isUnderMaintenance
+                              ? 'Select Alternative'
+                              : (isOccupied ? 'Get AI Alternative' : 'AI Alternative'),
+                          style: TextStyle(
+                            color: isOccupied ? AppColors.warning : AppColors.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),

@@ -149,7 +149,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Total Capacity: ${state.facilities.fold(0, (s, f) => s + f.capacity)} Members across ${state.facilities.length} Dedicated Zones',
+                      '${state.facilities.length} Dedicated Workout & Training Zones',
                       style: TextStyle(
                         color: context.subtitleColor,
                         fontSize: 11,
@@ -248,68 +248,6 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Occupancy Progress
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Live Crowd Occupancy',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                '${fac.currentOccupancy} / ${fac.capacity} (${fac.occupancyPercent}%)',
-                style: TextStyle(
-                  color: fac.occupancyPercent >= 80
-                      ? AppColors.error
-                      : (fac.occupancyPercent >= 50
-                          ? AppColors.warning
-                          : AppColors.success),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: fac.occupancyRate,
-              minHeight: 6,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation(
-                fac.occupancyPercent >= 80
-                    ? AppColors.error
-                    : (fac.occupancyPercent >= 50
-                        ? AppColors.warning
-                        : AppColors.success),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Change Status Action Button
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: () => _showChangeZoneStatusDialog(context, fac),
-              icon: const Icon(Icons.tune_rounded, size: 14),
-              label: const Text('Update Zone Status'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -333,8 +271,6 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               _buildInventoryKpi('Operational', '${state.operationalCount}', AppColors.success),
               Container(width: 1, height: 28, color: context.borderLine),
               _buildInventoryKpi('Maintenance', '${state.maintenanceCount}', AppColors.warning),
-              Container(width: 1, height: 28, color: context.borderLine),
-              _buildInventoryKpi('Out of Order', '${state.outOfOrderCount}', AppColors.error),
             ],
           ),
         ),
@@ -472,13 +408,13 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
         ? AppColors.warning
         : (item.isOperational
             ? AppColors.success
-            : (item.isUnderMaintenance ? AppColors.accentCyan : AppColors.error));
+            : AppColors.accentCyan);
 
     final statusText = item.isOccupied
         ? 'OCCUPIED (IN USE)'
         : (item.isOperational
             ? 'OPERATIONAL'
-            : (item.isUnderMaintenance ? 'MAINTENANCE' : 'OUT OF ORDER'));
+            : 'UNDER MAINTENANCE');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -648,7 +584,7 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              if (item.isOccupied) ...[
+              if (item.isUnderMaintenance || item.isOccupied) ...[
                 InkWell(
                   onTap: () => _showAiAlternativesPreview(context, item),
                   borderRadius: BorderRadius.circular(8),
@@ -691,16 +627,8 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
                     child: Text('Mark Operational (Available)', style: TextStyle(color: context.titleColor)),
                   ),
                   PopupMenuItem(
-                    value: 'occupied',
-                    child: Text('Mark Fully Occupied (In-Use)', style: TextStyle(color: context.titleColor)),
-                  ),
-                  PopupMenuItem(
                     value: 'under_maintenance',
                     child: Text('Set Under Maintenance', style: TextStyle(color: context.titleColor)),
-                  ),
-                  PopupMenuItem(
-                    value: 'out_of_order',
-                    child: Text('Mark Out of Order', style: TextStyle(color: context.titleColor)),
                   ),
                 ],
                 child: Container(
@@ -775,66 +703,6 @@ class _AdminFacilitiesScreenState extends ConsumerState<AdminFacilitiesScreen>
               child: const Text('Delete'),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  void _showChangeZoneStatusDialog(BuildContext context, FacilityModel fac) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: context.cardColor,
-          title: Text(
-            'Update Status for ${fac.name}',
-            style: TextStyle(color: context.titleColor, fontSize: 16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.check_circle_rounded, color: AppColors.success),
-                title: Text('Open (Normal Operation)', style: TextStyle(color: context.titleColor)),
-                onTap: () {
-                  ref
-                      .read(facilityNotifierProvider.notifier)
-                      .updateFacilityStatus(fac.id, 'open');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cleaning_services_rounded, color: AppColors.accentCyan),
-                title: Text('Cleaning / Sanitizing', style: TextStyle(color: context.titleColor)),
-                onTap: () {
-                  ref
-                      .read(facilityNotifierProvider.notifier)
-                      .updateFacilityStatus(fac.id, 'cleaning');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.build_rounded, color: AppColors.warning),
-                title: Text('Maintenance Work', style: TextStyle(color: context.titleColor)),
-                onTap: () {
-                  ref
-                      .read(facilityNotifierProvider.notifier)
-                      .updateFacilityStatus(fac.id, 'maintenance');
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.block_rounded, color: AppColors.error),
-                title: Text('Closed', style: TextStyle(color: context.titleColor)),
-                onTap: () {
-                  ref
-                      .read(facilityNotifierProvider.notifier)
-                      .updateFacilityStatus(fac.id, 'closed');
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
         );
       },
     );

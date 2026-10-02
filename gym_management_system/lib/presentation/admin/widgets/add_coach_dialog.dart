@@ -37,7 +37,6 @@ class _AddCoachSheetState extends State<_AddCoachSheet> {
   final _ageController = TextEditingController(text: '30');
   final _phoneController = TextEditingController();
 
-  int _maxClients = 20;
   String _selectedGender = 'Male';
   bool _obscurePassword = true;
   bool _isSubmitting = false;
@@ -114,7 +113,7 @@ class _AddCoachSheetState extends State<_AddCoachSheet> {
       email: email,
       specialization: specialization,
       password: password,
-      maxClients: _maxClients,
+      maxClients: 50,
       phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
       gender: _selectedGender,
       age: age,
@@ -572,50 +571,6 @@ class _AddCoachSheetState extends State<_AddCoachSheet> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-
-              // Client Capacity Slider
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Max Client Capacity',
-                    style: TextStyle(
-                      color: context.titleColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '$_maxClients Clients',
-                      style: const TextStyle(
-                        color: AppColors.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Slider(
-                value: _maxClients.toDouble(),
-                min: 5,
-                max: 30,
-                divisions: 25,
-                activeColor: AppColors.primary,
-                inactiveColor: context.elevatedSurface,
-                onChanged: (v) => setState(() => _maxClients = v.toInt()),
-              ),
-              Text(
-                'Standard gym allocation limit is 20 clients per coach.',
-                style: TextStyle(color: context.mutedColor, fontSize: 11),
               ),
               const SizedBox(height: 20),
 

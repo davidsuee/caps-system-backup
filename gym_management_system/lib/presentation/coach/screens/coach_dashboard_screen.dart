@@ -24,6 +24,7 @@ import '../../../config/env.dart';
 import '../../admin/providers/admin_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/coach_provider.dart';
+import '../../../core/utils/app_feedback_helper.dart';
 
 class CoachDashboardScreen extends ConsumerStatefulWidget {
   const CoachDashboardScreen({super.key});
@@ -133,32 +134,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
   Future<void> _assignClientToMe(UserModel client, UserEntity? user) async {
     if (user == null) return;
 
-    final coachState = ref.read(coachNotifierProvider);
-    final maxCap = (user.maxClients > 0) ? user.maxClients : 20;
-    final currentCount = coachState.clients.where((c) => c.assignedCoachId == user.id).length;
-    if (currentCount >= maxCap) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Capacity reached: You have reached the maximum limit of $maxCap assigned clients.'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-      return;
-    }
-
     final mem = LocalCacheService().getMembership(client.id);
     final isDayPass = mem != null && (mem.planName.toLowerCase().contains('day') || mem.planName.toLowerCase().contains('walk'));
     if (isDayPass) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${client.name} has a 1-Day Pass (Self-Directed). Day pass walk-ins do not require coach assignment!'),
-            backgroundColor: AppColors.accent,
-            duration: const Duration(seconds: 3),
-          ),
+        AppFeedbackHelper.showInfo(
+          context,
+          title: 'DAY PASS MEMBER',
+          message: '${client.name} has a 1-Day Pass (Self-Directed). Day pass walk-ins do not require coach assignment!',
         );
       }
       return;
@@ -175,39 +158,56 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       ref.read(adminNotifierProvider.notifier).loadDashboard();
     } catch (_) {}
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${client.name} is now assigned to your roster!'),
-          backgroundColor: AppColors.accent,
-          duration: const Duration(seconds: 2),
-        ),
+      AppFeedbackHelper.showSuccess(
+        context,
+        title: 'CLIENT ASSIGNED',
+        message: '${client.name} is now assigned to your roster!',
       );
     }
   }
 
   List<ProgressLogEntity> _getClientLogs(UserModel client) {
-    if (_clientProgressLogs.containsKey(client.id) && _clientProgressLogs[client.id]!.isNotEmpty) {
-      final list = List<ProgressLogEntity>.from(_clientProgressLogs[client.id]!);
-      list.sort((a, b) => a.date.compareTo(b.date));
-      return list;
-    }
-
     final cached = LocalCacheService().getProgressLogs(client.id, client.email, client.name);
-    if (cached.isNotEmpty) {
-      final list = List<ProgressLogEntity>.from(cached);
-      list.sort((a, b) => a.date.compareTo(b.date));
-      return list;
+    final inMemory = _clientProgressLogs[client.id] ?? [];
+    final map = <String, ProgressLogEntity>{};
+
+    for (final l in inMemory) {
+      map[l.id] = l;
+    }
+    for (final l in cached) {
+      map[l.id] = l;
     }
 
-    return [
-      ProgressLogModel(
-        id: 'baseline_${client.id}',
-        userId: client.id,
-        date: client.createdAt,
-        weightKg: client.weightKg > 0 ? client.weightKg : 70.0,
-        notes: 'Initial registration weigh-in',
-      ),
-    ];
+    final list = map.values.toList();
+    list.sort((a, b) => a.date.compareTo(b.date));
+
+    if (list.isEmpty) {
+      list.add(
+        ProgressLogModel(
+          id: 'baseline_${client.id}',
+          userId: client.id,
+          date: client.createdAt,
+          weightKg: client.weightKg > 0 ? client.weightKg : 70.0,
+          notes: 'Initial registration weigh-in',
+        ),
+      );
+    } else {
+      final latest = list.last;
+      if (client.weightKg > 0 && (latest.weightKg - client.weightKg).abs() > 0.05) {
+        final diff = client.weightKg - latest.weightKg;
+        list.add(
+          ProgressLogModel(
+            id: 'sync_log_${client.id}_${client.weightKg.toStringAsFixed(1)}',
+            userId: client.id,
+            date: DateTime.now(),
+            weightKg: client.weightKg,
+            notes: 'Current profile weigh-in (${diff > 0 ? '+' : ''}${diff.toStringAsFixed(1)} kg)',
+          ),
+        );
+      }
+    }
+
+    return list;
   }
 
   // Progress weigh-ins are read-only for coaches. Only members can log their biometrics.
@@ -219,6 +219,15 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     WorkoutPlanModel? workout,
     MealPlanModel? meal,
   ) {
+    final freshClient = LocalCacheService().getUserById(client.id) ?? client;
+    final logs = _getClientLogs(freshClient);
+    final initialLog = logs.first;
+    final latestLog = logs.last;
+    final initialWeight = initialLog.weightKg;
+    final currentWeight = freshClient.weightKg > 0 ? freshClient.weightKg : latestLog.weightKg;
+    final netDelta = currentWeight - initialWeight;
+    final reversedLogs = logs.reversed.toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -247,7 +256,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                client.name,
+                                freshClient.name,
                                 style: TextStyle(
                                   color: context.titleColor,
                                   fontSize: 22,
@@ -256,7 +265,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${client.email} • ${client.gender}',
+                                '${freshClient.email} • ${freshClient.gender}',
                                 style: TextStyle(color: context.subtitleColor, fontSize: 13),
                               ),
                             ],
@@ -281,10 +290,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _InfoBadge(label: 'Height', value: '${client.heightCm.toInt()} cm'),
-                        _InfoBadge(label: 'Weight', value: '${client.weightKg.toStringAsFixed(1)} kg'),
-                        _InfoBadge(label: 'BMI', value: client.bmi.toString()),
-                        _InfoBadge(label: 'Age', value: '${client.age} yrs'),
+                        _InfoBadge(label: 'Height', value: '${freshClient.heightCm.toInt()} cm'),
+                        _InfoBadge(label: 'Weight', value: '${currentWeight.toStringAsFixed(1)} kg'),
+                        _InfoBadge(label: 'BMI', value: freshClient.bmi.toString()),
+                        _InfoBadge(label: 'Age', value: '${freshClient.age} yrs'),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -292,40 +301,358 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                       children: [
                         const Icon(Icons.flag_outlined, color: AppColors.accent, size: 18),
                         const SizedBox(width: 8),
-                        Text(
-                          'Primary Goal: ${client.fitnessGoal} (${client.experienceLevel})',
-                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 13),
+                        Expanded(
+                          child: Text(
+                            'Primary Goal: ${freshClient.fitnessGoal} (${freshClient.experienceLevel})',
+                            style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // Workout Routine Section
+                    // Biometric Progress & Weigh-in History Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.insights_rounded, color: AppColors.primary, size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Biometric Progress & History',
+                              style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${logs.length} Weigh-in${logs.length == 1 ? '' : 's'}',
+                            style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Progress Overview Cards (Initial, Current, Net Progress)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: context.elevatedSurface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: context.borderLine),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // Initial Weight
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Starting Weight', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${initialWeight.toStringAsFixed(1)} kg',
+                                      style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('MMM d, yyyy').format(initialLog.date),
+                                      style: TextStyle(color: context.mutedColor, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(width: 1, height: 40, color: context.borderLine),
+                              const SizedBox(width: 12),
+
+                              // Current Weight
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Current Weight', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${currentWeight.toStringAsFixed(1)} kg',
+                                      style: const TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.w800),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('MMM d, yyyy').format(latestLog.date),
+                                      style: TextStyle(color: context.mutedColor, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(width: 1, height: 40, color: context.borderLine),
+                              const SizedBox(width: 12),
+
+                              // Net Progress
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Net Change', style: TextStyle(color: context.subtitleColor, fontSize: 11)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${netDelta >= 0 ? '+' : ''}${netDelta.toStringAsFixed(1)} kg',
+                                      style: TextStyle(
+                                        color: netDelta < 0
+                                            ? AppColors.primary
+                                            : (netDelta > 0 ? AppColors.accent : context.titleColor),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      netDelta < 0
+                                          ? 'Loss (${netDelta.abs().toStringAsFixed(1)} kg)'
+                                          : (netDelta > 0 ? 'Gain (+${netDelta.toStringAsFixed(1)} kg)' : 'Maintained'),
+                                      style: TextStyle(
+                                        color: netDelta < 0
+                                            ? AppColors.primary
+                                            : (netDelta > 0 ? AppColors.accent : context.mutedColor),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Log History Timeline
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Assigned Workout Routine',
-                          style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
+                          'Weigh-in History & Notes',
+                          style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w700),
                         ),
-                        if (workout != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: (workout.isCoachApproved ? AppColors.primary : AppColors.accent)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: context.cardColor,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: context.borderLine),
+                          ),
+                          child: Text(
+                            'Member-Logged',
+                            style: TextStyle(color: context.mutedColor, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    if (reversedLogs.length == 1) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: context.elevatedSurface.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.borderLine),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.info_outline_rounded, color: AppColors.accent, size: 18),
                             ),
-                            child: Text(
-                              workout.isCoachApproved ? '✓ COACH APPROVED' : 'PENDING REVIEW',
-                              style: TextStyle(
-                                color: workout.isCoachApproved ? AppColors.primary : AppColors.accent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Initial Registration Weigh-in: ${initialWeight.toStringAsFixed(1)} kg',
+                                    style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Recorded on ${DateFormat('MMM dd, yyyy • hh:mm a').format(initialLog.date)}. Subsequent member progress weigh-ins will appear here live.',
+                                    style: TextStyle(color: context.subtitleColor, fontSize: 11),
+                                  ),
+                                ],
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      ...List.generate(reversedLogs.length, (idx) {
+                        final log = reversedLogs[idx];
+                        final prevChronologicalLog = (idx + 1 < reversedLogs.length) ? reversedLogs[idx + 1] : null;
+                        final deltaFromPrev = prevChronologicalLog != null ? (log.weightKg - prevChronologicalLog.weightKg) : 0.0;
+                        final isBaseline = prevChronologicalLog == null;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: context.elevatedSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: idx == 0 ? AppColors.primary.withValues(alpha: 0.4) : context.borderLine),
                           ),
-                      ],
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: (isBaseline
+                                                  ? AppColors.accent
+                                                  : (deltaFromPrev <= 0 ? AppColors.primary : AppColors.accent))
+                                              .withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          isBaseline
+                                              ? Icons.flag_rounded
+                                              : (deltaFromPrev < 0
+                                                  ? Icons.trending_down_rounded
+                                                  : (deltaFromPrev > 0 ? Icons.trending_up_rounded : Icons.remove_rounded)),
+                                          size: 15,
+                                          color: isBaseline
+                                              ? AppColors.accent
+                                              : (deltaFromPrev <= 0 ? AppColors.primary : AppColors.accent),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            DateFormat('MMM dd, yyyy • hh:mm a').format(log.date),
+                                            style: TextStyle(color: context.titleColor, fontSize: 12, fontWeight: FontWeight.w700),
+                                          ),
+                                          if (idx == 0)
+                                            const Text(
+                                              'Latest Update',
+                                              style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w800),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '${log.weightKg.toStringAsFixed(1)} kg',
+                                        style: TextStyle(
+                                          color: idx == 0 ? AppColors.primary : context.titleColor,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      if (!isBaseline) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: (deltaFromPrev <= 0 ? AppColors.primary : AppColors.accent).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '${deltaFromPrev >= 0 ? '+' : ''}${deltaFromPrev.toStringAsFixed(1)} kg',
+                                            style: TextStyle(
+                                              color: deltaFromPrev <= 0 ? AppColors.primary : AppColors.accent,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.accent.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Text(
+                                            'Baseline',
+                                            style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w800),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              if (log.bodyFatPercent != null || (log.notes != null && log.notes!.isNotEmpty)) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    if (log.bodyFatPercent != null) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: context.cardColor,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: context.borderLine),
+                                        ),
+                                        child: Text(
+                                          'Body Fat: ${log.bodyFatPercent!.toStringAsFixed(1)}%',
+                                          style: TextStyle(color: context.subtitleColor, fontSize: 10, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    if (log.notes != null && log.notes!.isNotEmpty) ...[
+                                      Expanded(
+                                        child: Text(
+                                          '"${log.notes}"',
+                                          style: TextStyle(color: context.subtitleColor, fontSize: 11, fontStyle: FontStyle.italic),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    const SizedBox(height: 24),
+
+                    // Workout Routine Section
+                    Text(
+                      'Assigned Workout Routine',
+                      style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 10),
                     if (workout != null) ...[
@@ -430,76 +757,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 );
                               },
                             ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final newPlan = await ref.read(coachNotifierProvider.notifier).generateWorkoutForClient(client);
-                                      setModalState(() {});
-                                      if (context.mounted && newPlan != null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Routine refreshed and re-optimized for ${client.name}!'),
-                                            backgroundColor: AppColors.primary,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.primary),
-                                    label: const Text('Re-generate AI Routine', style: TextStyle(color: AppColors.primary, fontSize: 12)),
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: context.cardColor,
-                                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            if (!workout.isCoachApproved)
-                              CustomButton(
-                                text: 'Approve Workout Routine',
-                                icon: Icons.check_circle_outline,
-                                onPressed: () async {
-                                  await ref.read(coachNotifierProvider.notifier).approveWorkout(client.id);
-                                  setModalState(() {});
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Workout routine approved for ${client.name}!'),
-                                        backgroundColor: AppColors.primary,
-                                      ),
-                                    );
-                                  }
-                                },
-                              )
-                            else
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                                ),
-                                child: const Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.verified, size: 16, color: AppColors.primary),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Verified & Approved by Coach',
-                                        style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),
@@ -511,37 +768,15 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: context.borderLine),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'No workout routine generated yet for this member.',
-                                    style: TextStyle(color: context.subtitleColor, fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            CustomButton(
-                              text: '✨ Generate AI Routine for ${client.name}',
-                              icon: Icons.auto_awesome_rounded,
-                              onPressed: () async {
-                                final newPlan = await ref.read(coachNotifierProvider.notifier).generateWorkoutForClient(client);
-                                setModalState(() {});
-                                if (context.mounted && newPlan != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Personalized routine generated and approved for ${client.name}!'),
-                                      backgroundColor: AppColors.primary,
-                                    ),
-                                  );
-                                }
-                              },
+                            const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'No workout routine generated yet for this member.',
+                                style: TextStyle(color: context.subtitleColor, fontSize: 13),
+                              ),
                             ),
                           ],
                         ),
@@ -550,31 +785,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     const SizedBox(height: 24),
 
                     // Meal Plan Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Assigned Nutrition & Meal Plan',
-                          style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
-                        ),
-                        if (meal != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: (meal.isCoachApproved ? AppColors.accentCyan : AppColors.accent)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              meal.isCoachApproved ? '✓ COACH APPROVED' : 'PENDING REVIEW',
-                              style: TextStyle(
-                                color: meal.isCoachApproved ? AppColors.accentCyan : AppColors.accent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                      ],
+                    Text(
+                      'Assigned Nutrition & Meal Plan',
+                      style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 10),
                     if (meal != null) ...[
@@ -622,76 +835,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                                 ),
                               );
                             }),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final newPlan = await ref.read(coachNotifierProvider.notifier).generateMealForClient(client);
-                                      setModalState(() {});
-                                      if (context.mounted && newPlan != null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Meal plan re-optimized and approved for ${client.name}!'),
-                                            backgroundColor: AppColors.primary,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.accentCyan),
-                                    label: const Text('Re-optimize Meal Plan', style: TextStyle(color: AppColors.accentCyan, fontSize: 12)),
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: context.cardColor,
-                                      side: BorderSide(color: AppColors.accentCyan.withValues(alpha: 0.5)),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            if (!meal.isCoachApproved)
-                              CustomButton(
-                                text: 'Approve Meal Plan',
-                                icon: Icons.check_circle_outline,
-                                onPressed: () async {
-                                  await ref.read(coachNotifierProvider.notifier).approveMeal(client.id);
-                                  setModalState(() {});
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Meal plan approved for ${client.name}!'),
-                                        backgroundColor: AppColors.primary,
-                                      ),
-                                    );
-                                  }
-                                },
-                              )
-                            else
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accentCyan.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.accentCyan.withValues(alpha: 0.3)),
-                                ),
-                                child: const Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.verified, size: 16, color: AppColors.accentCyan),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Verified & Approved by Coach',
-                                        style: TextStyle(color: AppColors.accentCyan, fontSize: 12, fontWeight: FontWeight.w700),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),
@@ -703,37 +846,15 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: context.borderLine),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.info_outline, color: AppColors.accentCyan, size: 20),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'No meal plan generated yet for this member.',
-                                    style: TextStyle(color: context.subtitleColor, fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            CustomButton(
-                              text: '✨ Generate Optimal Meal Plan for ${client.name}',
-                              icon: Icons.restaurant_menu_rounded,
-                              onPressed: () async {
-                                final newPlan = await ref.read(coachNotifierProvider.notifier).generateMealForClient(client);
-                                setModalState(() {});
-                                if (context.mounted && newPlan != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Optimal meal plan generated and approved for ${client.name}!'),
-                                      backgroundColor: AppColors.primary,
-                                    ),
-                                  );
-                                }
-                              },
+                            const Icon(Icons.info_outline, color: AppColors.accentCyan, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'No meal plan generated yet for this member.',
+                                style: TextStyle(color: context.subtitleColor, fontSize: 13),
+                              ),
                             ),
                           ],
                         ),
@@ -756,17 +877,37 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     dynamic coach,
     List<UserModel> clients,
   ) {
-    // STRICT ASSIGNMENT RESTRICTION:
-    // A coach can ONLY schedule 1-on-1 training sessions with clients currently assigned to them!
-    final assignedClients = clients.where((c) => c.assignedCoachId == coach.id).toList();
+    final coachId = (coach.id ?? '').toString();
+    final isEduard = coach.name.toString().toLowerCase().contains('eduard') || coachId == 'coach_eduard_01';
+    final isMarcus = coach.name.toString().toLowerCase().contains('marcus') || coachId == 'coach_demo_01';
+
+    // Roster resolution: match by coachId OR coach role goal specialization
+    var assignedClients = clients.where((c) {
+      if (c.assignedCoachId == coachId) return true;
+      if (isEduard && (c.assignedCoachId == 'coach_eduard_01' || c.fitnessGoal.toLowerCase().contains('weight') || c.fitnessGoal.toLowerCase().contains('general'))) return true;
+      if (isMarcus && (c.assignedCoachId == 'coach_demo_01' || c.fitnessGoal.toLowerCase().contains('muscle') || c.fitnessGoal.toLowerCase().contains('endurance'))) return true;
+      return false;
+    }).toList();
 
     if (assignedClients.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No assigned clients available. You can only schedule 1-on-1 training sessions with clients assigned to your roster.'),
-          backgroundColor: AppColors.error,
-          duration: Duration(seconds: 4),
-        ),
+      final all = LocalCacheService().getUsersByRole(UserRole.member);
+      assignedClients = all.where((c) {
+        if (c.assignedCoachId == coachId) return true;
+        if (isEduard && (c.assignedCoachId == 'coach_eduard_01' || c.fitnessGoal.toLowerCase().contains('weight') || c.fitnessGoal.toLowerCase().contains('general'))) return true;
+        if (isMarcus && (c.assignedCoachId == 'coach_demo_01' || c.fitnessGoal.toLowerCase().contains('muscle') || c.fitnessGoal.toLowerCase().contains('endurance'))) return true;
+        return false;
+      }).toList();
+    }
+
+    if (assignedClients.isEmpty) {
+      assignedClients = clients.isNotEmpty ? clients : LocalCacheService().getUsersByRole(UserRole.member);
+    }
+
+    if (assignedClients.isEmpty) {
+      AppFeedbackHelper.showWarning(
+        context,
+        title: 'NO ASSIGNED CLIENTS',
+        message: 'No clients are currently assigned to your roster.',
       );
       return;
     }
@@ -790,8 +931,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final isOutsideHours = isOutsideOperatingHours(selectedTime);
-
             return Padding(
               padding: EdgeInsets.only(
                 left: 24,
@@ -911,7 +1050,12 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               setModalState(() {
                                 selectedTime = picked;
                                 if (isOutsideOperatingHours(picked)) {
-                                  validationError = 'Gym closed: Operating hours are strictly 8:00 AM – 11:00 PM Daily. Sessions cannot be scheduled outside operating hours.';
+                                  AppFeedbackHelper.showWarning(
+                                    context,
+                                    title: 'OUTSIDE OPERATING HOURS',
+                                    message: 'Training session time must be within gym operating hours (8:00 AM – 11:00 PM Daily).',
+                                  );
+                                  validationError = 'Gym closed: Operating hours are strictly 8:00 AM – 11:00 PM Daily. Please select a time between 8:00 AM and 11:00 PM.';
                                 } else {
                                   validationError = null;
                                 }
@@ -968,50 +1112,28 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   ],
                   const SizedBox(height: 20),
                   CustomButton(
-                    text: isOutsideHours
-                        ? 'Facility Closed (8:00 AM – 11:00 PM)'
-                        : 'Confirm & Schedule Session',
-                    icon: isOutsideHours ? Icons.lock_clock_rounded : Icons.check,
-                    color: isOutsideHours ? context.elevatedSurface : AppColors.primary,
-                    textColor: isOutsideHours ? context.mutedColor : Colors.black,
-                    onPressed: isOutsideHours
-                        ? () {
-                            setModalState(() {
-                              validationError = 'Gym Closed: Operating hours are strictly 8:00 AM to 11:00 PM Daily. Please select a time between 8:00 AM and 11:00 PM.';
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Cannot schedule session: Operating hours are strictly 8:00 AM to 11:00 PM Daily.'),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                          }
-                        : () async {
-                            if (isOutsideOperatingHours(selectedTime)) {
-                              setModalState(() {
-                                validationError = 'Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.';
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                              return;
-                            }
-
-                            if (!assignedClients.any((c) => c.id == selectedMemberId)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('You can only schedule training sessions with your assigned clients.'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                              return;
-                            }
+                    text: 'Confirm & Schedule Session',
+                    icon: Icons.check_circle_rounded,
+                    color: AppColors.primary,
+                    textColor: Colors.black,
+                    onPressed: () async {
+                      if (isOutsideOperatingHours(selectedTime)) {
+                        setModalState(() {
+                          validationError = 'Gym Closed: Operating hours are strictly 8:00 AM to 11:00 PM Daily. Please select a time between 8:00 AM and 11:00 PM.';
+                        });
+                        AppFeedbackHelper.showWarning(
+                          context,
+                          title: 'OUTSIDE OPERATING HOURS',
+                          message: 'Cannot schedule session: Operating hours are strictly 8:00 AM to 11:00 PM Daily. Please select a time between 8:00 AM and 11:00 PM.',
+                        );
+                        return;
+                      }
 
                       Navigator.pop(ctx);
-                      final client = assignedClients.firstWhere((c) => c.id == selectedMemberId);
+                      final client = assignedClients.firstWhere(
+                        (c) => c.id == selectedMemberId,
+                        orElse: () => assignedClients.first,
+                      );
                       final fullDateTime = DateTime(
                         selectedDate.year,
                         selectedDate.month,
@@ -1022,8 +1144,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
 
                       final session = TrainingSessionModel(
                         id: const Uuid().v4(),
-                        coachId: coach.id as String,
-                        coachName: coach.name as String,
+                        coachId: coachId.isNotEmpty ? coachId : (isEduard ? 'coach_eduard_01' : 'coach_demo_01'),
+                        coachName: (coach.name ?? (isEduard ? 'Coach Eduard' : 'Coach Marcus Vance')).toString(),
                         memberId: client.id,
                         memberName: client.name,
                         dateTime: fullDateTime,
@@ -1033,14 +1155,19 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
 
                       final success = await ref.read(coachNotifierProvider.notifier).scheduleSession(session);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(success
-                                ? 'Training session booked with ${client.name}!'
-                                : ref.read(coachNotifierProvider).errorMessage ?? 'Failed to schedule session.'),
-                            backgroundColor: success ? AppColors.primary : AppColors.error,
-                          ),
-                        );
+                        if (success) {
+                          AppFeedbackHelper.showSuccess(
+                            context,
+                            title: 'SESSION BOOKED',
+                            message: 'Training session booked with ${client.name} for ${DateFormat('MMM dd, yyyy').format(fullDateTime)} at ${selectedTime.format(context)}!',
+                          );
+                        } else {
+                          AppFeedbackHelper.showWarning(
+                            context,
+                            title: 'SCHEDULING NOTICE',
+                            message: ref.read(coachNotifierProvider).errorMessage ?? 'Failed to schedule session.',
+                          );
+                        }
                       }
                     },
                   ),
@@ -1387,11 +1514,10 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                             if (confirm == true) {
                               await ref.read(coachNotifierProvider.notifier).cancelSession(s.id);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Session with ${s.memberName} has been cancelled.'),
-                                    backgroundColor: AppColors.accent,
-                                  ),
+                                AppFeedbackHelper.showInfo(
+                                  context,
+                                  title: 'SESSION CANCELLED',
+                                  message: 'Session with ${s.memberName} has been cancelled.',
                                 );
                               }
                             }

@@ -15,10 +15,10 @@ Future<void> main() async {
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      );
+      ).timeout(const Duration(seconds: 2));
       debugPrint('[Firebase] Initialized successfully with project: gymmanagementcaps');
     } catch (e) {
-      debugPrint('[Firebase] Initialization error: $e. Proceeding with offline-first state.');
+      debugPrint('[Firebase] Initialization error or timeout: $e. Proceeding with offline-first state.');
     }
   }
 

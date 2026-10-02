@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/app_feedback_helper.dart';
 import '../../../domain/entities/workout_plan_entity.dart';
 import '../../../domain/services/exercise_alternative_service.dart';
 import '../../admin/providers/facility_provider.dart';
@@ -92,14 +93,13 @@ class AiExerciseAlternativeModal extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.accent],
-                      ),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                     ),
                     child: const Icon(
                       Icons.auto_awesome_rounded,
-                      color: Colors.black,
+                      color: AppColors.primary,
                       size: 20,
                     ),
                   ),
@@ -184,7 +184,7 @@ class AiExerciseAlternativeModal extends ConsumerWidget {
                               const SizedBox(height: 4),
                               Text(
                                 notice ??
-                                    '${exercise.equipment} is part of your workout. If the machine is occupied by another member or has a queue, use an AI biomechanical alternative below!',
+                                    '${exercise.equipment} is part of your workout. If the equipment is under maintenance or occupied, select an in-gym alternative below!',
                                 style: TextStyle(
                                   color: context.titleColor,
                                   fontSize: 12,
@@ -386,23 +386,9 @@ class AiExerciseAlternativeModal extends ConsumerWidget {
                   onSwapped!();
                 }
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: context.cardColor,
-                    behavior: SnackBarBehavior.floating,
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Swapped to ${alt.alternativeName} in your active workout!',
-                            style: TextStyle(color: context.titleColor, fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                AppFeedbackHelper.showSuccess(
+                  context,
+                  message: 'Swapped to ${alt.alternativeName} in your active workout!',
                 );
               },
               icon: const Icon(Icons.swap_horiz_rounded, size: 18),

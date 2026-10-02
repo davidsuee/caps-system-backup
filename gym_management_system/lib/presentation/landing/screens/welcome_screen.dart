@@ -384,7 +384,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 750),
                     child: const Text(
-                      'Smart gym management featuring custom AI workout routines, precision meal planning, live occupancy tracking, and certified personal trainers.',
+                      'Smart gym management featuring custom AI workout routines, precision meal planning, live occupancy tracking, and dedicated personal trainers.',
                       style: TextStyle(
                         color: Color(0xFFD5DCE5),
                         fontSize: 15,

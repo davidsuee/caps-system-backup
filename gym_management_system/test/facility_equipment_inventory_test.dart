@@ -130,11 +130,11 @@ void main() {
     test('Adding new Equipment persists and appears in inventory', () async {
       final newEquipment = EquipmentModel(
         id: 'eq-test-${DateTime.now().millisecondsSinceEpoch}',
-        name: 'Concept2 RowErg PM5',
+        name: 'Commercial Row Machine',
         category: 'Cardio',
         facilityId: 'fac-1',
         facilityName: 'Cardio Deck',
-        serialNumber: 'C2-ROW-9988',
+        serialNumber: 'CR-ROW-9988',
         status: 'operational',
         lastMaintained: DateTime.now(),
         nextMaintenanceDate: DateTime.now().add(const Duration(days: 90)),
@@ -145,8 +145,8 @@ void main() {
       final equipmentList = await facilityRepo.getAllEquipment();
       final found = equipmentList.where((e) => e.id == newEquipment.id).firstOrNull;
       expect(found, isNotNull);
-      expect(found!.name, equals('Concept2 RowErg PM5'));
-      expect(found.serialNumber, equals('C2-ROW-9988'));
+      expect(found!.name, equals('Commercial Row Machine'));
+      expect(found.serialNumber, equals('CR-ROW-9988'));
     });
 
     test('FacilityNotifier loads state and calculates accurate operational metrics', () async {

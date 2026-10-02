@@ -57,6 +57,14 @@ class LocalCacheService {
         }
       }
 
+      final delUsersJson = prefs.getString('vicious_deleted_user_ids');
+      if (delUsersJson != null && delUsersJson.isNotEmpty) {
+        final decoded = jsonDecode(delUsersJson);
+        if (decoded is List) {
+          _deletedUserIds.addAll(decoded.map((e) => e.toString()));
+        }
+      }
+
       final usersJson = prefs.getString('vicious_cached_users') ?? prefs.getString('viscous_cached_users');
       if (usersJson != null && usersJson.isNotEmpty) {
         final decodedUsers = jsonDecode(usersJson);
@@ -65,11 +73,30 @@ class LocalCacheService {
             if (item is Map) {
               final map = Map<String, dynamic>.from(item);
               var u = UserModel.fromJson(map, map['id']?.toString() ?? '');
-              if (u.id == 'coach_demo_02' || u.id == 'coach_demo_03') {
+              if (u.id == 'coach_demo_02' || u.id == 'coach_demo_03' || _deletedUserIds.contains(u.id)) {
                 continue;
               }
-              if (u.role == UserRole.coach && u.maxClients < 20) {
-                u = UserModel.fromEntity(u.copyWith(maxClients: 20));
+              // Deduplicate any secondary or older Coach Eduard account (such as eduard@gmail.com)
+              if (u.role == UserRole.coach &&
+                  u.id != 'coach_demo_01' &&
+                  u.id != 'coach_eduard_01' &&
+                  (u.email.toLowerCase().trim() == 'eduard@gmail.com' ||
+                   (u.name.toLowerCase().contains('eduard') && u.email.toLowerCase().trim() != 'eduard@gym.com'))) {
+                _deletedUserIds.add(u.id);
+                continue;
+              }
+              if (u.role == UserRole.coach) {
+                if (u.name.toLowerCase().contains('marcus') || u.id == 'coach_demo_01') {
+                  u = UserModel.fromEntity(u.copyWith(
+                    specialization: 'Muscle Gain, Improve Endurance',
+                    fitnessGoal: 'Muscle Gain',
+                  ));
+                } else if (u.name.toLowerCase().contains('eduard') || u.id == 'coach_eduard_01') {
+                  u = UserModel.fromEntity(u.copyWith(
+                    specialization: 'Weight Loss, General Fitness',
+                    fitnessGoal: 'Weight Loss',
+                  ));
+                }
               }
               if (u.email.isNotEmpty) {
                 _users[u.email.toLowerCase().trim()] = u;
@@ -79,7 +106,29 @@ class LocalCacheService {
               }
             }
           }
+
+          // Ensure any duplicate Coach Eduard is wiped from memory and storage
+          final coachesToDelete = _users.values
+              .where((c) =>
+                  c.role == UserRole.coach &&
+                  c.id != 'coach_demo_01' &&
+                  c.id != 'coach_eduard_01' &&
+                  (c.email.toLowerCase().trim() == 'eduard@gmail.com' ||
+                   (c.name.toLowerCase().contains('eduard') && c.email.toLowerCase().trim() != 'eduard@gym.com')))
+              .toList();
+
+          for (final dup in coachesToDelete) {
+            _users.remove(dup.id);
+            _users.remove(dup.email.toLowerCase().trim());
+            _deletedUserIds.add(dup.id);
+          }
+          if (coachesToDelete.isNotEmpty) {
+            _persistDeletedUserIds();
+            _persistUsers();
+          }
+
           _enforceCoachCapacities();
+          _alignMembersToCoaches();
         }
       }
 
@@ -306,6 +355,7 @@ class LocalCacheService {
   final Map<String, FacilityModel> _facilities = {};
   final Map<String, EquipmentModel> _equipment = {};
   final Set<String> _deletedEquipmentIds = {};
+  final Set<String> _deletedUserIds = {};
   final List<WalkInRecordModel> _walkInRecords = [];
 
   LocalCacheService._internal() {
@@ -318,16 +368,33 @@ class LocalCacheService {
       name: 'Coach Marcus Vance',
       email: 'coach@gym.com',
       role: UserRole.coach,
-      specialization: 'Strength & Conditioning',
+      specialization: 'Muscle Gain, Improve Endurance',
       maxClients: 20,
       age: 32,
       heightCm: 182.0,
       weightKg: 85.0,
       gender: 'Male',
-      fitnessGoal: 'Improve Endurance',
+      fitnessGoal: 'Muscle Gain',
       activityLevel: 'Very Active',
       experienceLevel: 'Advanced',
       createdAt: DateTime.now().subtract(const Duration(days: 120)),
+    );
+
+    final demoCoachEduard = UserModel(
+      id: 'coach_eduard_01',
+      name: 'Coach Eduard',
+      email: 'eduard@gym.com',
+      role: UserRole.coach,
+      specialization: 'Weight Loss, General Fitness',
+      maxClients: 20,
+      age: 28,
+      heightCm: 178.0,
+      weightKg: 75.0,
+      gender: 'Male',
+      fitnessGoal: 'Weight Loss',
+      activityLevel: 'Very Active',
+      experienceLevel: 'Advanced',
+      createdAt: DateTime.now().subtract(const Duration(days: 90)),
     );
 
     final demoAdmin = UserModel(
@@ -354,6 +421,7 @@ class LocalCacheService {
       fitnessGoal: 'Weight Loss',
       activityLevel: 'Lightly Active',
       experienceLevel: 'Beginner',
+      assignedCoachId: 'coach_eduard_01',
       createdAt: DateTime.now().subtract(const Duration(days: 20)),
     );
 
@@ -363,9 +431,10 @@ class LocalCacheService {
       email: 'michael.c@example.com',
       role: UserRole.member,
       age: 31,
-      fitnessGoal: 'Strength & Conditioning',
+      fitnessGoal: 'Improve Endurance',
       activityLevel: 'Moderately Active',
       experienceLevel: 'Intermediate',
+      assignedCoachId: 'coach_demo_01',
       createdAt: DateTime.now().subtract(const Duration(days: 15)),
     );
 
@@ -378,11 +447,14 @@ class LocalCacheService {
       fitnessGoal: 'Muscle Gain',
       activityLevel: 'Very Active',
       experienceLevel: 'Intermediate',
+      assignedCoachId: 'coach_demo_01',
       createdAt: DateTime.now().subtract(const Duration(days: 10)),
     );
 
     _users[demoCoach.email.toLowerCase()] = demoCoach;
     _users[demoCoach.id] = demoCoach;
+    _users[demoCoachEduard.email.toLowerCase()] = demoCoachEduard;
+    _users[demoCoachEduard.id] = demoCoachEduard;
 
     _users[demoAdmin.email.toLowerCase()] = demoAdmin;
     _users[demoAdmin.id] = demoAdmin;
@@ -396,6 +468,8 @@ class LocalCacheService {
 
     // Seed default credentials for baseline accounts
     _userPasswords['coach@gym.com'] = 'password123';
+    _userPasswords['eduard@gym.com'] = 'password123';
+    _userPasswords['coach.eduard@gym.com'] = 'password123';
     _userPasswords['staff@gym.com'] = 'password123';
     _userPasswords['admin@gym.com'] = 'password123';
     _userPasswords['sarah.j@example.com'] = 'password123';
@@ -406,7 +480,7 @@ class LocalCacheService {
     final fac1 = FacilityModel(
       id: 'fac_cardio_01',
       name: 'Cardio Deck & Aerobics',
-      description: 'High-performance commercial treadmills, rowers, and ellipticals',
+      description: 'High-performance commercial treadmills, stationary bikes, and cardio stations',
       capacity: 30,
       currentOccupancy: 12,
       status: 'open',
@@ -494,23 +568,11 @@ class LocalCacheService {
       lastMaintained: DateTime.now().subtract(const Duration(days: 15)),
       nextMaintenanceDate: DateTime.now().add(const Duration(days: 55)),
     );
-    final eq6 = EquipmentModel(
-      id: 'eq_rower_01',
-      facilityId: 'fac_functional_01',
-      facilityName: 'Functional & Boxing Turf',
-      name: 'Concept2 Ergometer Rower',
-      category: 'Functional',
-      serialNumber: 'VF-FN-001',
-      status: 'operational',
-      lastMaintained: DateTime.now().subtract(const Duration(days: 25)),
-      nextMaintenanceDate: DateTime.now().add(const Duration(days: 65)),
-    );
 
     _equipment[eq1.id] = eq1;
     _equipment[eq3.id] = eq3;
     _equipment[eq4.id] = eq4;
     _equipment[eq5.id] = eq5;
-    _equipment[eq6.id] = eq6;
     _ensureNewEquipmentSeeded();
 
     // Seed Sample Walk-In / Day Pass Records for today (Admin-Only Front Desk Registry)
@@ -569,7 +631,10 @@ class LocalCacheService {
   List<UserModel> getAllUsers() {
     final Map<String, UserModel> map = {};
     for (final u in _users.values) {
-      if (u.id.isNotEmpty) {
+      if (u.id.isNotEmpty &&
+          u.id != 'coach_demo_02' &&
+          u.id != 'coach_demo_03' &&
+          !_deletedUserIds.contains(u.id)) {
         map[u.id] = u;
       }
     }
@@ -578,35 +643,67 @@ class LocalCacheService {
   List<UserModel> getUsersByRole(UserRole role) {
     final list = getAllUsers().where((u) => u.role == role).toList();
     if (role == UserRole.coach) {
-      return list.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
+      return list
+          .where((c) =>
+              c.id != 'coach_demo_02' &&
+              c.id != 'coach_demo_03' &&
+              !_deletedUserIds.contains(c.id) &&
+              !(c.id != 'coach_demo_01' &&
+                c.id != 'coach_eduard_01' &&
+                (c.email.toLowerCase().trim() == 'eduard@gmail.com' ||
+                 (c.name.toLowerCase().contains('eduard') && c.email.toLowerCase().trim() != 'eduard@gym.com'))))
+          .toList();
     }
     return list;
   }
 
-  void _enforceCoachCapacities() {
-    final members = getAllUsers().where((u) => u.role == UserRole.member).toList();
-    final Map<String, int> counts = {};
+  bool isUserDeleted(String id) => _deletedUserIds.contains(id);
 
-    for (final m in members) {
-      if (m.assignedCoachId != null && m.assignedCoachId!.isNotEmpty) {
-        final cid = m.assignedCoachId!;
-        final coach = getUserById(cid);
-        final maxCap = (coach != null && coach.maxClients > 0) ? coach.maxClients : 20;
-        final current = counts[cid] ?? 0;
-        if (current >= maxCap) {
-          final unassigned = UserModel.fromEntity(m.copyWith(assignedCoachId: null, clearAssignedCoach: true));
-          _users[m.email.toLowerCase().trim()] = unassigned;
-          _users[m.id] = unassigned;
-        } else {
-          counts[cid] = current + 1;
+  void _enforceCoachCapacities() {
+    // Client capacity limits removed per gym requirements
+  }
+
+  void _alignMembersToCoaches() {
+    final coaches = getUsersByRole(UserRole.coach);
+    final marcus = coaches.where((c) => c.name.toLowerCase().contains('marcus')).firstOrNull
+        ?? getUserById('coach_demo_01');
+    final eduard = coaches.where((c) => c.name.toLowerCase().contains('eduard')).firstOrNull
+        ?? getUserById('coach_eduard_01');
+
+    final marcusId = marcus?.id ?? 'coach_demo_01';
+    final eduardId = eduard?.id ?? 'coach_eduard_01';
+
+    for (final key in _users.keys.toList()) {
+      final u = _users[key]!;
+      if (u.role == UserRole.member) {
+        final goal = u.fitnessGoal.toLowerCase();
+        final targetCoachId = (goal.contains('muscle') || goal.contains('endurance') || goal.contains('strength'))
+            ? marcusId
+            : eduardId;
+
+        if (u.assignedCoachId != targetCoachId) {
+          _users[key] = UserModel.fromEntity(u.copyWith(assignedCoachId: targetCoachId));
         }
       }
     }
   }
 
   void saveUser(UserModel user) {
-    _users[user.email.toLowerCase().trim()] = user;
-    _users[user.id] = user;
+    var toSave = user;
+    if (toSave.role == UserRole.member && (toSave.assignedCoachId == null || toSave.assignedCoachId!.isEmpty)) {
+      final goal = toSave.fitnessGoal.toLowerCase();
+      final coaches = getUsersByRole(UserRole.coach);
+      final marcus = coaches.where((c) => c.name.toLowerCase().contains('marcus')).firstOrNull
+          ?? getUserById('coach_demo_01');
+      final eduard = coaches.where((c) => c.name.toLowerCase().contains('eduard')).firstOrNull
+          ?? getUserById('coach_eduard_01');
+      final targetCoachId = (goal.contains('muscle') || goal.contains('endurance') || goal.contains('strength'))
+          ? (marcus?.id ?? 'coach_demo_01')
+          : (eduard?.id ?? 'coach_eduard_01');
+      toSave = UserModel.fromEntity(toSave.copyWith(assignedCoachId: targetCoachId));
+    }
+    _users[toSave.email.toLowerCase().trim()] = toSave;
+    _users[toSave.id] = toSave;
     _persistUsers();
   }
 
@@ -619,6 +716,7 @@ class LocalCacheService {
   }
 
   void deleteUser(String userId) {
+    _deletedUserIds.add(userId);
     UserModel? userToRemove;
     for (final u in _users.values) {
       if (u.id == userId) {
@@ -630,8 +728,21 @@ class LocalCacheService {
       _users.remove(userToRemove.email.toLowerCase().trim());
       _users.remove(userToRemove.id);
       _userPasswords.remove(userToRemove.email.toLowerCase().trim());
-      _persistUsers();
-      _persistPasswords();
+    } else {
+      _users.remove(userId);
+    }
+    _persistDeletedUserIds();
+    _persistUsers();
+    _persistPasswords();
+  }
+
+  void _persistDeletedUserIds() {
+    try {
+      final prefs = _prefs;
+      if (prefs == null) return;
+      prefs.setString('vicious_deleted_user_ids', jsonEncode(_deletedUserIds.toList()));
+    } catch (e) {
+      debugPrint('[LocalCacheService] Error persisting deleted user ids: $e');
     }
   }
 
@@ -656,7 +767,30 @@ class LocalCacheService {
     return stored == password;
   }
 
-  WorkoutPlanModel? getWorkoutPlan(String userId) => _activeWorkouts[userId];
+  WorkoutPlanModel? getWorkoutPlan(String userId) {
+    final plan = _activeWorkouts[userId];
+    if (plan == null) return null;
+    final cleanedExercises = plan.exercises.map((ex) {
+      if (ex.equipment.toLowerCase().contains('concept2') ||
+          ex.equipment.toLowerCase().contains('ergometer') ||
+          ex.equipment.toLowerCase() == 'rower' ||
+          ex.name.toLowerCase().contains('concept2') ||
+          ex.name.toLowerCase().contains('ergometer')) {
+        return ex.copyWith(
+          name: ex.name
+              .replaceAll(RegExp(r'Concept2\s*', caseSensitive: false), '')
+              .replaceAll(RegExp(r'\(Ergometer\)', caseSensitive: false), '')
+              .trim(),
+          equipment: 'Row Machine',
+          instructions: ex.instructions
+              ?.replaceAll(RegExp(r'Concept2', caseSensitive: false), 'Row Machine')
+              .replaceAll(RegExp(r'Ergometer:', caseSensitive: false), 'Row Machine:'),
+        );
+      }
+      return ex;
+    }).toList();
+    return plan.copyWith(exercises: cleanedExercises);
+  }
   void saveWorkoutPlan(WorkoutPlanModel plan) {
     _activeWorkouts[plan.userId] = plan;
     _persistWorkouts();
@@ -1033,6 +1167,11 @@ class LocalCacheService {
   List<EquipmentModel> getAllEquipment() {
     _equipment.remove('eq_treadmill_02');
     _equipment.remove('eq_stair_01');
+    _equipment.remove('eq_rower_01');
+    _equipment.removeWhere((id, eq) =>
+        eq.name.toLowerCase().contains('concept2') ||
+        eq.name.toLowerCase().contains('ergometer') ||
+        id == 'eq_rower_01');
     _ensureNewEquipmentSeeded();
     final tread = _equipment['eq_treadmill_01'];
     if (tread != null && tread.name != 'Commercial Treadmill') {

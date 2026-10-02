@@ -10,6 +10,7 @@ import '../../../core/utils/validators.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../workout/providers/workout_provider.dart';
 import '../../meal/providers/meal_provider.dart';
+import '../../progress/providers/progress_provider.dart';
 import '../../dashboard/widgets/member_app_bar.dart';
 import '../../dashboard/widgets/member_bottom_nav.dart';
 
@@ -56,17 +57,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.read(authNotifierProvider).user;
     if (user == null) return;
 
+    final newWeight = double.tryParse(_weightController.text.trim()) ?? user.weightKg;
+    final weightChanged = (newWeight - user.weightKg).abs() > 0.05;
+
     final updated = user.copyWith(
       name: _nameController.text.trim(),
       age: int.tryParse(_ageController.text.trim()) ?? user.age,
       heightCm: double.tryParse(_heightController.text.trim()) ?? user.heightCm,
-      weightKg: double.tryParse(_weightController.text.trim()) ?? user.weightKg,
+      weightKg: newWeight,
       fitnessGoal: _fitnessGoal,
       activityLevel: _activityLevel,
       experienceLevel: _experienceLevel,
     );
 
     await ref.read(authNotifierProvider.notifier).updateProfile(updated);
+
+    if (weightChanged) {
+      final diff = newWeight - user.weightKg;
+      final diffSign = diff > 0 ? '+' : '';
+      try {
+        await ref.read(progressNotifierProvider.notifier).addLog(
+          userId: user.id,
+          weightKg: newWeight,
+          notes: 'Weight update from Profile ($diffSign${diff.toStringAsFixed(1)} kg)',
+          user: user,
+        );
+      } catch (_) {}
+    }
 
     // Trigger AI re-generation for the updated goals, activity level, and experience level
     await ref.read(workoutNotifierProvider.notifier).generatePlan(updated);

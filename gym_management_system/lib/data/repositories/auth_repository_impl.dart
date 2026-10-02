@@ -52,6 +52,12 @@ class AuthRepositoryImpl implements AuthRepository {
         e == 'coach@gym.ph') {
       return 'coach@gym.com';
     }
+    if (e == 'eduard@viscious.com' ||
+        e == 'eduard@gym.com' ||
+        e == 'coach.eduard@gym.com' ||
+        e == 'eduard.coach@gym.com') {
+      return 'eduard@gym.com';
+    }
     if (e == 'admin@viscious.com' ||
         e == 'admin@viscous.com' ||
         e == 'admin@vicious.com' ||
@@ -119,6 +125,16 @@ class AuthRepositoryImpl implements AuthRepository {
             _localCache.setCurrentUser(demoCoach);
             return demoCoach;
           }
+        } else if (resolvedEmail == 'eduard@gym.com' || cleanEmail == 'eduard@gym.com') {
+          final eduard = _localCache.getUserById('coach_eduard_01') ??
+              _localCache.getUsersByRole(UserRole.coach).where((c) => c.name.toLowerCase().contains('eduard')).firstOrNull;
+          if (eduard != null) {
+            if (!_localCache.verifyUserPassword(eduard.email, password)) {
+              throw Exception('Incorrect password. Please verify your credentials or contact the gym administrator.');
+            }
+            _localCache.setCurrentUser(eduard);
+            return eduard;
+          }
         } else if (cleanEmail.contains('admin') || cleanEmail.contains('staff')) {
           final demoAdmin = _localCache.getUserById('admin_demo_01') ??
               _localCache.getUsersByRole(UserRole.admin).firstOrNull;
@@ -165,6 +181,20 @@ class AuthRepositoryImpl implements AuthRepository {
     return UserRole.member;
   }
 
+  String _resolveCoachForFitnessGoal(String fitnessGoal) {
+    final goal = fitnessGoal.toLowerCase();
+    final coaches = _localCache.getUsersByRole(UserRole.coach);
+    if (goal.contains('muscle') || goal.contains('endurance') || goal.contains('strength')) {
+      final marcus = coaches.where((c) => c.name.toLowerCase().contains('marcus')).firstOrNull
+          ?? _localCache.getUserById('coach_demo_01');
+      return marcus?.id ?? 'coach_demo_01';
+    } else {
+      final eduard = coaches.where((c) => c.name.toLowerCase().contains('eduard')).firstOrNull
+          ?? _localCache.getUserById('coach_eduard_01');
+      return eduard?.id ?? 'coach_eduard_01';
+    }
+  }
+
   @override
   Future<UserEntity> signUpWithEmailPassword({
     required String name,
@@ -184,6 +214,7 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     final cleanEmail = email.toLowerCase().trim();
+    final assignedCoachId = role == UserRole.member ? _resolveCoachForFitnessGoal(fitnessGoal) : null;
 
     if (Env.useFirebase) {
       try {
@@ -201,6 +232,7 @@ class AuthRepositoryImpl implements AuthRepository {
           fitnessGoal: fitnessGoal,
           activityLevel: activityLevel,
           experienceLevel: experienceLevel,
+          assignedCoachId: assignedCoachId,
           createdAt: DateTime.now(),
         );
         await _firestore.saveUser(user);
@@ -240,6 +272,7 @@ class AuthRepositoryImpl implements AuthRepository {
       fitnessGoal: fitnessGoal,
       activityLevel: activityLevel,
       experienceLevel: experienceLevel,
+      assignedCoachId: assignedCoachId,
       createdAt: DateTime.now(),
     );
     final initialLog = ProgressLogModel(
@@ -268,7 +301,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> updateUserProfile(UserEntity user) async {
-    final model = UserModel.fromEntity(user);
+    String? coachId = user.assignedCoachId;
+    if (user.role == UserRole.member) {
+      coachId = _resolveCoachForFitnessGoal(user.fitnessGoal);
+    }
+    final model = UserModel.fromEntity(user.copyWith(assignedCoachId: coachId));
     if (Env.useFirebase) {
       try {
         await _firestore.saveUser(model);

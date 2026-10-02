@@ -109,16 +109,32 @@ class AdminRepositoryImpl implements AdminRepository {
   @override
   Future<List<UserModel>> getAllCoaches() async {
     final localCoaches = _localCache.getUsersByRole(UserRole.coach);
+    bool isDuplicateEduard(UserModel c) =>
+        c.id != 'coach_demo_01' &&
+        c.id != 'coach_eduard_01' &&
+        (c.email.toLowerCase().trim() == 'eduard@gmail.com' ||
+         (c.name.toLowerCase().contains('eduard') && c.email.toLowerCase().trim() != 'eduard@gym.com'));
+
     if (Env.useFirebase) {
       try {
         final remote = await _firestore.getUsersByRole(UserRole.coach);
         if (remote.isNotEmpty) {
           final map = <String, UserModel>{};
           for (final u in localCoaches) {
-            map[u.id] = u;
+            if (u.id != 'coach_demo_02' &&
+                u.id != 'coach_demo_03' &&
+                !_localCache.isUserDeleted(u.id) &&
+                !isDuplicateEduard(u)) {
+              map[u.id] = u;
+            }
           }
           for (final u in remote) {
-            map[u.id] = u;
+            if (u.id != 'coach_demo_02' &&
+                u.id != 'coach_demo_03' &&
+                !_localCache.isUserDeleted(u.id) &&
+                !isDuplicateEduard(u)) {
+              map[u.id] = u;
+            }
           }
           final merged = map.values.toList();
           _localCache.saveUsers(merged);
@@ -127,10 +143,22 @@ class AdminRepositoryImpl implements AdminRepository {
       } catch (_) {}
     }
     if (localCoaches.isNotEmpty) {
-      return localCoaches.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
+      return localCoaches
+          .where((c) =>
+              c.id != 'coach_demo_02' &&
+              c.id != 'coach_demo_03' &&
+              !_localCache.isUserDeleted(c.id) &&
+              !isDuplicateEduard(c))
+          .toList();
     }
     final all = _localCache.getAllUsers().where((u) => u.role == UserRole.coach).toList();
-    return all.map((c) => c.maxClients < 20 ? UserModel.fromEntity(c.copyWith(maxClients: 20)) : c).toList();
+    return all
+        .where((c) =>
+            c.id != 'coach_demo_02' &&
+            c.id != 'coach_demo_03' &&
+            !_localCache.isUserDeleted(c.id) &&
+            !isDuplicateEduard(c))
+        .toList();
   }
 
   @override
@@ -275,48 +303,32 @@ class AdminRepositoryImpl implements AdminRepository {
     if (coaches.isEmpty) return null;
     final goal = memberGoal.toLowerCase();
 
-    // 1. Goal vs Specialization synergy:
-    // - Weight Loss / Fat Burn / Cardio -> Coach Elena (Fat Loss & Functional HIIT)
-    // - Muscle Gain / Hypertrophy / Bodybuilding -> Coach Dave (Bodybuilding & Hypertrophy)
-    // - Endurance / Strength / Conditioning -> Coach Marcus (Strength & Conditioning)
+    // 1. Specific Coach Split:
+    // - Muscle Gain & Improve Endurance -> Coach Marcus Vance
+    // - Weight Loss & General Fitness -> Coach Eduard
+    if (goal.contains('muscle') || goal.contains('endurance') || goal.contains('strength')) {
+      final marcus = coaches.where((c) => c.name.toLowerCase().contains('marcus') || c.id == 'coach_demo_01').firstOrNull;
+      if (marcus != null) return marcus;
+    }
+    if (goal.contains('weight') || goal.contains('loss') || goal.contains('fat') || goal.contains('general') || goal.contains('fitness')) {
+      final eduard = coaches.where((c) => c.name.toLowerCase().contains('eduard') || c.id == 'coach_eduard_01').firstOrNull;
+      if (eduard != null) return eduard;
+    }
+
+    // 2. Secondary check by specialization
     for (final coach in coaches) {
       final spec = (coach.specialization ?? '').toLowerCase();
-      if ((goal.contains('weight') || goal.contains('fat') || goal.contains('loss') || goal.contains('cardio') || goal.contains('burn')) &&
-          (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional') || spec.contains('weight'))) {
+      if ((goal.contains('muscle') || goal.contains('endurance')) &&
+          (spec.contains('muscle') || spec.contains('endurance'))) {
         return coach;
       }
-      if ((goal.contains('muscle') || goal.contains('gain') || goal.contains('hypertrophy') || goal.contains('bodybuilding')) &&
-          (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding') || spec.contains('gain'))) {
-        return coach;
-      }
-      if ((goal.contains('strength') || goal.contains('endurance') || goal.contains('conditioning') || goal.contains('power') || goal.contains('stamina')) &&
-          (spec.contains('strength') || spec.contains('conditioning') || spec.contains('endurance'))) {
-        return coach;
-      }
-      if ((goal.contains('general') || goal.contains('fitness') || goal.contains('mobility') || goal.contains('health')) &&
-          (spec.contains('general') || spec.contains('fitness') || spec.contains('mobility'))) {
+      if ((goal.contains('weight') || goal.contains('general') || goal.contains('fitness')) &&
+          (spec.contains('weight') || spec.contains('general') || spec.contains('fitness'))) {
         return coach;
       }
     }
 
-    // 2. Secondary check against coach's own fitnessGoal / title
-    for (final coach in coaches) {
-      final cGoal = coach.fitnessGoal.toLowerCase();
-      if (goal.contains('weight') && (cGoal.contains('cardio') || cGoal.contains('health'))) return coach;
-      if (goal.contains('muscle') && (cGoal.contains('hypertrophy') || cGoal.contains('muscle'))) return coach;
-      if (goal.contains('endurance') && (cGoal.contains('endurance') || cGoal.contains('strength'))) return coach;
-    }
-
-    // 3. Fallback: coach with lowest current client workload
-    final allMembers = _localCache.getUsersByRole(UserRole.member);
-    final sortedCoaches = List<UserModel>.from(coaches);
-    sortedCoaches.sort((a, b) {
-      final countA = allMembers.where((m) => m.assignedCoachId == a.id).length;
-      final countB = allMembers.where((m) => m.assignedCoachId == b.id).length;
-      return countA.compareTo(countB);
-    });
-
-    return sortedCoaches.first;
+    return coaches.first;
   }
 
   @override
@@ -604,19 +616,20 @@ class AdminRepositoryImpl implements AdminRepository {
         // 1. Goal vs Specialization synergy (up to 40 pts)
         final goal = member.fitnessGoal.toLowerCase();
         final spec = (coach.specialization ?? '').toLowerCase();
-        int specScore = 20; // baseline compatibility
+        final cName = coach.name.toLowerCase();
+        int specScore = 15; // baseline compatibility
 
-        if ((goal.contains('weight') || goal.contains('fat') || goal.contains('loss') || goal.contains('cardio')) &&
-            (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional') || spec.contains('weight'))) {
-          specScore = 40;
-        } else if ((goal.contains('muscle') || goal.contains('gain') || goal.contains('hypertrophy') || goal.contains('bodybuilding')) &&
-            (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding') || spec.contains('gain'))) {
-          specScore = 40;
-        } else if ((goal.contains('strength') || goal.contains('endurance') || goal.contains('conditioning') || goal.contains('power')) &&
-            (spec.contains('strength') || spec.contains('conditioning') || spec.contains('endurance'))) {
-          specScore = 40;
-        } else if (spec.contains('general') || goal.contains('general') || spec.contains('fitness') || goal.contains('fitness')) {
-          specScore = 35;
+        final isMarcus = cName.contains('marcus') || coach.id == 'coach_demo_01';
+        final isEduard = cName.contains('eduard') || coach.id == 'coach_eduard_01';
+
+        if (goal.contains('muscle') || goal.contains('endurance') || goal.contains('strength')) {
+          if (isMarcus || spec.contains('muscle') || spec.contains('endurance')) {
+            specScore = 40;
+          }
+        } else if (goal.contains('weight') || goal.contains('loss') || goal.contains('fat') || goal.contains('general') || goal.contains('fitness')) {
+          if (isEduard || spec.contains('weight') || spec.contains('loss') || spec.contains('general') || spec.contains('fitness')) {
+            specScore = 40;
+          }
         }
 
         // 2. Workload balance score (up to 40 pts - inverse of load ratio)
@@ -746,6 +759,11 @@ class AdminRepositoryImpl implements AdminRepository {
       }
     }
     _localCache.deleteUser(coachId);
+    if (Env.useFirebase) {
+      try {
+        await _firestore.deleteUser(coachId);
+      } catch (_) {}
+    }
   }
 }
 

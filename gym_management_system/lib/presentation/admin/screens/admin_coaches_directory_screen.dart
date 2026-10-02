@@ -691,10 +691,6 @@ class _AdminCoachesDirectoryScreenState
           maxChildSize: 0.95,
           expand: false,
           builder: (_, scrollController) {
-            final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
-            final utilRatio = (assigned.length / maxCap).clamp(0.0, 1.0);
-            final utilPercent = (utilRatio * 100).round();
-
             return ListView(
               controller: scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -771,7 +767,7 @@ class _AdminCoachesDirectoryScreenState
                 ),
                 const SizedBox(height: 20),
 
-                // Workload meter
+                // Active Clients summary
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -779,83 +775,38 @@ class _AdminCoachesDirectoryScreenState
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: context.borderLine),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.people_alt_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Current Workload Capacity',
-                                style: TextStyle(
-                                  color: context.titleColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showEditCapacityDialog(context, coach);
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.edit_rounded, size: 11, color: AppColors.primary),
-                                      SizedBox(width: 3),
-                                      Text(
-                                        'Edit Limit',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                           Text(
-                            '${assigned.length} / $maxCap ($utilPercent%)',
+                            'Active Clients',
                             style: TextStyle(
-                              color: utilPercent >= 90
-                                  ? AppColors.error
-                                  : (utilPercent >= 60
-                                      ? AppColors.warning
-                                      : AppColors.success),
+                              color: context.subtitleColor,
                               fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${assigned.length} ${assigned.length == 1 ? "Client" : "Clients"}',
+                            style: TextStyle(
+                              color: context.titleColor,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: utilRatio,
-                          minHeight: 8,
-                          backgroundColor: AppColors.border,
-                          valueColor: AlwaysStoppedAnimation(
-                            utilPercent >= 90
-                                ? AppColors.error
-                                : (utilPercent >= 60
-                                    ? AppColors.warning
-                                    : AppColors.success),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -868,49 +819,21 @@ class _AdminCoachesDirectoryScreenState
                   children: [
                     Text(
                       'Assigned Clients (${assigned.length})',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.titleColor,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    if (assigned.length >= maxCap)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.block_rounded, size: 14, color: AppColors.error),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Capacity Full (Max $maxCap/$maxCap)',
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _showManualAssignPicker(context, coach);
-                        },
-                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                        label: const Text('Add Member'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showManualAssignPicker(context, coach);
+                      },
+                      icon: const Icon(Icons.person_add_rounded, size: 14, color: AppColors.primary),
+                      label: const Text('Add Client',
+                          style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1112,127 +1035,9 @@ class _AdminCoachesDirectoryScreenState
     );
   }
 
-  void _showEditCapacityDialog(BuildContext context, UserModel coach) {
-    int selectedCap = coach.maxClients > 0 ? coach.maxClients : 20;
-    showDialog(
-      context: context,
-      builder: (dlgCtx) => StatefulBuilder(
-        builder: (ctx, setDlgState) => AlertDialog(
-          backgroundColor: context.cardColor,
-          title: Text(
-            'Adjust Client Limit for ${coach.name}',
-            style: TextStyle(
-              color: context.titleColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Set the maximum active client slots for this coach:',
-                style: TextStyle(color: context.subtitleColor, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: AppColors.primary),
-                    onPressed: selectedCap > 1 ? () => setDlgState(() => selectedCap--) : null,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: context.elevatedSurface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: context.borderLine),
-                    ),
-                    child: Text(
-                      '$selectedCap Clients',
-                      style: TextStyle(
-                        color: context.titleColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                    onPressed: selectedCap < 50 ? () => setDlgState(() => selectedCap++) : null,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [10, 15, 20, 25, 30].map((val) {
-                  final isSelected = selectedCap == val;
-                  return ChoiceChip(
-                    label: Text('$val'),
-                    selected: isSelected,
-                    selectedColor: AppColors.primary,
-                    onSelected: (_) => setDlgState(() => selectedCap = val),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dlgCtx),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                Navigator.pop(dlgCtx);
-                final ok = await ref.read(adminNotifierProvider.notifier).updateCoachCapacity(
-                      coachId: coach.id,
-                      maxClients: selectedCap,
-                    );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(ok
-                          ? 'Capacity for ${coach.name} updated to $selectedCap clients.'
-                          : 'Failed to update coach capacity.'),
-                      backgroundColor: ok ? AppColors.primary : AppColors.error,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save Limit', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showManualAssignPicker(BuildContext context, UserModel coach) {
     final adminState = ref.read(adminNotifierProvider);
     final allMembers = adminState.members;
-    final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
-    final currentAssigned = allMembers
-        .where((m) => m.assignedCoachId == coach.id && !_isDayPassMember(m.id, adminState))
-        .length;
-
-    if (currentAssigned >= maxCap) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot assign: Coach ${coach.name} is already at full capacity ($currentAssigned/$maxCap clients).'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
     final unassignedOrOther = allMembers
         .where((m) => m.assignedCoachId != coach.id && !_isDayPassMember(m.id, adminState))
         .toList();
@@ -1378,14 +1183,7 @@ class _CoachRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCap = coach.maxClients > 0 ? coach.maxClients : 20;
     final assignedCount = assignedMembers.length;
-    final ratio = (assignedCount / maxCap).clamp(0.0, 1.0);
-    final percent = (ratio * 100).round();
-    final isFull = assignedCount >= maxCap;
-    final loadColor = isFull
-        ? AppColors.error
-        : (percent >= 60 ? AppColors.warning : AppColors.success);
 
     return InkWell(
       onTap: onTap,
@@ -1396,7 +1194,7 @@ class _CoachRecordCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isFull ? AppColors.error.withValues(alpha: 0.4) : context.borderLine),
+          border: Border.all(color: context.borderLine),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1447,16 +1245,13 @@ class _CoachRecordCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isFull
-                        ? AppColors.error.withValues(alpha: 0.15)
-                        : AppColors.accent.withValues(alpha: 0.15),
+                    color: AppColors.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: isFull ? Border.all(color: AppColors.error.withValues(alpha: 0.4)) : null,
                   ),
-                  child: Text(
-                    isFull ? 'FULL ($maxCap/$maxCap)' : 'Coach',
+                  child: const Text(
+                    'Coach',
                     style: TextStyle(
-                      color: isFull ? AppColors.error : AppColors.accent,
+                      color: AppColors.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1495,41 +1290,44 @@ class _CoachRecordCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Workload Bar
+            // Clients Count Indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Workload Capacity',
+                  'Assigned Clients',
                   style: TextStyle(
                     color: context.mutedColor,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  isFull
-                      ? '$assignedCount/$maxCap Clients (FULL - Max Limit)'
-                      : '$assignedCount/$maxCap Clients ($percent%)',
-                  style: TextStyle(
-                    color: loadColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.people_alt_rounded, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$assignedCount ${assignedCount == 1 ? "Client" : "Clients"}',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: ratio,
-                minHeight: 6,
-                backgroundColor: context.borderLine,
-                valueColor: AlwaysStoppedAnimation<Color>(loadColor),
-              ),
             ),
             const SizedBox(height: 10),
 

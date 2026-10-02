@@ -139,16 +139,16 @@ class FeaturesScreen extends StatelessWidget {
         'icon': Icons.groups_rounded,
         'color': AppColors.accent,
         'tag': 'DEDICATED TRAINERS',
-        'title': '1-on-1 Certified Coach Pairing',
-        'subtitle': 'Automated Coach Balancing',
+        'title': '1-on-1 Coach Pairing',
+        'subtitle': 'Goal-Based Coach Matching',
         'desc':
-            'Pairs you with certified fitness trainers who have real availability. Intelligent workload distribution ensures your coach has the time and focus to guide you through your fitness journey.',
-        'engine': 'WORKLOAD BALANCING ENGINE',
+            'Pairs you with dedicated fitness trainers matched to your primary fitness goal. Intelligent assignment ensures your coach has the time and focus to guide you through your fitness journey.',
+        'engine': 'GOAL-ALIGNED MATCHING ENGINE',
         'benefits': [
-          'Strict 20-client limit per coach for quality care',
-          'Operating hours (8:00 AM – 11:00 PM) booking guarantee',
+          'Goal-aligned coach matching for targeted fitness progression',
           'Direct personalized guidance & accountability',
           'Form checks, customized advice, & regular milestones',
+          'Scheduled 1-on-1 training sessions directly in-app',
         ],
       },
     ];

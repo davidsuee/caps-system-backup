@@ -182,22 +182,18 @@ class AmenitiesScreen extends StatelessWidget {
         'title': 'Cardio Deck',
         'icon': Icons.directions_run_rounded,
         'color': AppColors.primary,
-        'capacity': 'Moderate Occupancy',
-        'rate': 0.45,
         'desc': 'High-end cardiovascular conditioning gear featuring interactive fitness tracking and real-time biometric monitors.',
         'equipment': [
           'High-end Treadmills with speed/incline variation',
-          'Concept2 Rowers & SkiErgs',
-          'Assault AirBikes for HIIT & Tabata',
-          'StairMaster stepmills',
+          'Stationary Exercise Bikes (Upright & Recumbent)',
+          'Elliptical Cross-Trainers',
+          'Commercial Rowing Machines',
         ],
       },
       {
         'title': 'Free Weights Area',
         'icon': Icons.fitness_center_rounded,
         'color': AppColors.accent,
-        'capacity': 'Popular Zone',
-        'rate': 0.65,
         'desc': 'Extensive free weight space built for strength athletics, powerlifting, bodybuilding, and calibrated progressive overload.',
         'equipment': [
           'Dumbbell rack paired up to 50kg pairs',
@@ -210,8 +206,6 @@ class AmenitiesScreen extends StatelessWidget {
         'title': 'Functional Turf Studio',
         'icon': Icons.sports_mma_rounded,
         'color': AppColors.accentCyan,
-        'capacity': 'Light Occupancy',
-        'rate': 0.30,
         'desc': '30-meter high-density athletic turf zone dedicated to functional conditioning, agility work, and explosive power drills.',
         'equipment': [
           'Weighted push/pull sled tracks',
@@ -224,8 +218,6 @@ class AmenitiesScreen extends StatelessWidget {
         'title': 'Group Fitness Hall',
         'icon': Icons.groups_rounded,
         'color': Colors.purpleAccent,
-        'capacity': 'Open for Free Use',
-        'rate': 0.20,
         'desc': 'Spacious sprung-wood studio for bodyweight conditioning, group stretching, mobility sessions, and trainer demonstrations.',
         'equipment': [
           'Shock-absorbing sprung wood flooring',
@@ -238,11 +230,9 @@ class AmenitiesScreen extends StatelessWidget {
         'title': 'Locker Rooms & Showers',
         'icon': Icons.shower_rounded,
         'color': const Color(0xFF38BDF8),
-        'capacity': 'Available',
-        'rate': 0.25,
-        'desc': 'Secure, spotless changing suites with electronic lock systems, high-pressure hot & cold showers, and full grooming stations.',
+        'desc': 'Secure, spotless changing suites with secure padlock locker systems, high-pressure hot & cold showers, and full grooming stations.',
         'equipment': [
-          'Digital electronic lockers',
+          'Heavy-Duty Padlock Security Lockers',
           'High-pressure rain showers with heated water',
           'Blow-dryers & grooming vanities',
           'Sanitized day-use storage',
@@ -252,8 +242,6 @@ class AmenitiesScreen extends StatelessWidget {
         'title': 'Recovery & Stretching Lounge',
         'icon': Icons.self_improvement_rounded,
         'color': const Color(0xFF34D399),
-        'capacity': 'Relaxed',
-        'rate': 0.15,
         'desc': 'Dedicated cool-down space engineered to accelerate muscle recuperation, improve joint mobility, and reduce DOMS.',
         'equipment': [
           'Trigger-point foam rollers & lacrosse balls',
@@ -276,8 +264,6 @@ class AmenitiesScreen extends StatelessWidget {
             final title = z['title'] as String;
             final icon = z['icon'] as IconData;
             final color = z['color'] as Color;
-            final capacity = z['capacity'] as String;
-            final rate = z['rate'] as double;
             final desc = z['desc'] as String;
             final equipment = z['equipment'] as List<String>;
 
@@ -304,46 +290,22 @@ class AmenitiesScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(icon, color: color, size: 22),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  style: TextStyle(
-                                    color: context.titleColor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: color.withValues(alpha: 0.3)),
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          child: Icon(icon, color: color, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
                           child: Text(
-                            capacity,
+                            title,
                             style: TextStyle(
-                              color: color,
-                              fontSize: 10.5,
+                              color: context.titleColor,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -357,41 +319,6 @@ class AmenitiesScreen extends StatelessWidget {
                         color: context.subtitleColor,
                         fontSize: 13,
                         height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    // Occupancy Progress Indicator
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Average Crowd Density',
-                            style: TextStyle(
-                              color: context.mutedColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${(rate * 100).toInt()}% Busy',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: rate,
-                        minHeight: 6,
-                        backgroundColor: isDark ? const Color(0xFF222831) : const Color(0xFFE2E8F0),
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -466,7 +393,7 @@ class AmenitiesScreen extends StatelessWidget {
             '• Proper athletic footwear and gym clothing required on all workout floors.\n'
             '• Sanitizing wipe stations available across every zone—re-rack weights after each set.\n'
             '• Operating strictly between 8:00 AM and 11:00 PM Daily. All check-ins managed at the front reception counter.\n'
-            '• Certified personal trainers available for scheduled 1-on-1 coaching sessions.',
+            '• Dedicated personal trainers available for scheduled 1-on-1 coaching sessions.',
             style: TextStyle(
               color: context.subtitleColor,
               fontSize: 13,

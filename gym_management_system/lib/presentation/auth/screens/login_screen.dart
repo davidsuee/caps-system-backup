@@ -342,6 +342,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 8),
           _buildDemoChip(
             context: context,
+            roleTitle: 'Coach / Trainer',
+            name: 'Coach Eduard',
+            email: 'eduard@gym.com',
+            icon: Icons.sports_gymnastics_rounded,
+            color: AppColors.accentCyan,
+          ),
+          const SizedBox(height: 8),
+          _buildDemoChip(
+            context: context,
             roleTitle: 'Gym Administrator',
             name: 'Admin Sarah Connor',
             email: 'staff@gym.com',

@@ -1258,17 +1258,16 @@ class AdminDashboardScreen extends ConsumerWidget {
   Widget _buildEquipmentSheetItem(BuildContext context, EquipmentModel eq) {
     final isOccupied = eq.isOccupied;
     final isOp = eq.isOperational;
-    final isMaint = eq.isUnderMaintenance;
     final badgeColor = isOccupied
         ? AppColors.warning
         : (isOp
             ? AppColors.primary
-            : (isMaint ? AppColors.accent : AppColors.error));
+            : AppColors.accent);
     final badgeText = isOccupied
         ? 'OCCUPIED (IN USE)'
         : (isOp
             ? 'OPERATIONAL'
-            : (isMaint ? 'MAINTENANCE' : 'OUT OF ORDER'));
+            : 'UNDER MAINTENANCE');
 
     IconData catIcon = Icons.fitness_center_rounded;
     if (eq.category.toLowerCase().contains('cardio')) {

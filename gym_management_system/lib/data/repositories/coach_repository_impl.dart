@@ -33,23 +33,10 @@ class CoachRepositoryImpl implements CoachRepository {
     final effectiveCoachId = coachId ?? (currentUser != null && currentUser.role == UserRole.coach ? currentUser.id : null);
     if (effectiveCoachId == null) return [];
 
-    final coachUser = _localCache.getUserById(effectiveCoachId) ?? (currentUser?.id == effectiveCoachId ? currentUser : null);
     final allMembers = _localCache.getUsersByRole(UserRole.member);
     final eligibleMembers = allMembers.where((u) => !_isDayPassMember(u.id)).toList();
 
     final specific = eligibleMembers.where((u) => u.assignedCoachId == effectiveCoachId).toList();
-    final maxCap = (coachUser != null && coachUser.maxClients > 0) ? coachUser.maxClients : 20;
-
-    // STRICT CAPACITY ENFORCEMENT: Max 20 clients per coach!
-    if (specific.length > maxCap) {
-      final allowed = specific.sublist(0, maxCap);
-      final overflow = specific.sublist(maxCap);
-      for (final over in overflow) {
-        final unassigned = UserModel.fromEntity(over.copyWith(assignedCoachId: null, clearAssignedCoach: true));
-        _localCache.saveUser(unassigned);
-      }
-      return allowed;
-    }
     return specific;
   }
 

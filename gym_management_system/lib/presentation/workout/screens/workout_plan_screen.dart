@@ -11,6 +11,7 @@ import '../../admin/providers/facility_provider.dart';
 import '../../../domain/services/exercise_alternative_service.dart';
 import '../../../core/utils/facility_hours_helper.dart';
 import '../../../data/datasources/local/local_cache_service.dart';
+import '../../../core/utils/app_feedback_helper.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/exercise_card.dart';
 
@@ -256,58 +257,69 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
 
                       if (plan != null && plan.exercises.isNotEmpty) ...[
                         if (occupiedExercises.isNotEmpty) ...[
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 18),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: AppColors.warning.withValues(alpha: 0.4),
+                          Builder(builder: (context) {
+                            final hasMaintenance = occupiedExercises.any((ex) =>
+                                alternativeService.isEquipmentUnderMaintenance(
+                                  ex,
+                                  equipment: facilityState.equipment,
+                                ));
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 18),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.warning.withValues(alpha: 0.4),
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.warning.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(10),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.warning.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      hasMaintenance ? Icons.build_rounded : Icons.bolt_rounded,
+                                      color: AppColors.warning,
+                                      size: 22,
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.bolt_rounded,
-                                    color: AppColors.warning,
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${occupiedExercises.length} ${occupiedExercises.length == 1 ? 'Machine is' : 'Machines are'} Currently Occupied',
-                                        style: const TextStyle(
-                                          color: AppColors.warning,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          hasMaintenance
+                                              ? '${occupiedExercises.length} ${occupiedExercises.length == 1 ? 'Equipment' : 'Equipments'} Under Maintenance or Busy'
+                                              : '${occupiedExercises.length} ${occupiedExercises.length == 1 ? 'Machine is' : 'Machines are'} Currently Occupied',
+                                          style: const TextStyle(
+                                            color: AppColors.warning,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'AI biomechanical alternatives are ready. Tap "Get AI Alternative" on any busy machine to continue training without waiting!',
-                                        style: TextStyle(
-                                          color: context.titleColor,
-                                          fontSize: 11,
-                                          height: 1.35,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          hasMaintenance
+                                              ? 'In-gym alternatives are ready. Tap "Select Alternative" to switch to an available operational exercise!'
+                                              : 'AI biomechanical alternatives are ready. Tap "Get AI Alternative" on any busy machine to continue training without waiting!',
+                                          style: TextStyle(
+                                            color: context.titleColor,
+                                            fontSize: 11,
+                                            height: 1.35,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -418,32 +430,24 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                               lockReason: lockReason,
                               onToggle: () {
                                 if (!isGymOpen) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(FacilityHoursHelper.closedProgressWarning),
-                                      backgroundColor: AppColors.error,
-                                      duration: Duration(seconds: 3),
-                                    ),
+                                  AppFeedbackHelper.showWarning(
+                                    context,
+                                    message: FacilityHoursHelper.closedProgressWarning,
                                   );
                                   return;
                                 }
                                 if (!isCheckedIn) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(FacilityHoursHelper.checkInRequiredWarning),
-                                      backgroundColor: Colors.amber,
-                                      duration: Duration(seconds: 3),
-                                    ),
+                                  AppFeedbackHelper.showCheckInWarning(
+                                    context,
+                                    message: FacilityHoursHelper.checkInRequiredWarning,
                                   );
                                   return;
                                 }
                                 if (isSessionCompleted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(FacilityHoursHelper.sessionAlreadyCompletedWarning),
-                                      backgroundColor: AppColors.accentCyan,
-                                      duration: Duration(seconds: 3),
-                                    ),
+                                  AppFeedbackHelper.showInfo(
+                                    context,
+                                    title: 'SESSION COMPLETED',
+                                    message: FacilityHoursHelper.sessionAlreadyCompletedWarning,
                                   );
                                   return;
                                 }
@@ -457,12 +461,10 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                                   if (otherIncomplete == 0) {
                                     LocalCacheService().markAttendanceSessionCompleted(activeAttendance.id);
                                     setState(() {});
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('🎉 Outstanding! You completed all exercises for this gym visit. Your progress is saved and locked until your next check-in at reception!'),
-                                        backgroundColor: AppColors.primary,
-                                        duration: Duration(seconds: 4),
-                                      ),
+                                    AppFeedbackHelper.showSuccess(
+                                      context,
+                                      title: 'SESSION FINISHED',
+                                      message: '🎉 Outstanding! You completed all exercises for this gym visit. Your progress is saved and locked until your next check-in at reception!',
                                     );
                                   }
                                 }
@@ -478,12 +480,10 @@ class _WorkoutPlanScreenState extends ConsumerState<WorkoutPlanScreen> {
                               onPressed: () {
                                 LocalCacheService().markAttendanceSessionCompleted(activeAttendance.id);
                                 setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Workout progress finished & locked for this gym visit! Check in again via admin reception on your next visit to log progress.'),
-                                    backgroundColor: AppColors.primary,
-                                    duration: Duration(seconds: 4),
-                                  ),
+                                AppFeedbackHelper.showSuccess(
+                                  context,
+                                  title: 'PROGRESS LOCKED',
+                                  message: 'Workout progress finished & locked for this gym visit! Check in again via admin reception on your next visit to log progress.',
                                 );
                               },
                               icon: const Icon(Icons.done_all_rounded, color: Colors.black, size: 20),

@@ -9,6 +9,7 @@ import '../../../data/datasources/local/local_cache_service.dart';
 import '../../../data/models/membership_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/walk_in_record_model.dart';
+import '../../../core/utils/app_feedback_helper.dart';
 import '../providers/admin_provider.dart';
 
 class AdminAttendanceScreen extends ConsumerStatefulWidget {
@@ -140,65 +141,10 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen>
     final isOpen = _isGymOpen(now);
 
     if (!isOpen) {
-      // Gym is closed: Strictly block check-in. No override permitted outside 8:00 AM - 11:00 PM.
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: context.cardColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.lock_clock_rounded, color: AppColors.error, size: 22),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  'Facility Closed: Check-In Disabled',
-                  style: TextStyle(color: context.titleColor, fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Vicious Fitness operating hours are 8:00 AM to 11:00 PM Daily.\n\nCurrent Time: ${DateFormat('hh:mm a').format(now)} (Facility Closed)',
-                style: TextStyle(color: context.subtitleColor, fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.elevatedSurface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.borderLine),
-                ),
-                child: Text(
-                  'Member check-in is strictly disabled outside operating hours (before 8:00 AM and after 11:00 PM) to ensure facility compliance and attendance integrity.\n\nAll active workout sessions automatically check out at 11:00 PM.',
-                  style: TextStyle(color: context.mutedColor, fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Understood', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 12)),
-            ),
-          ],
-        ),
+      AppFeedbackHelper.showWarning(
+        context,
+        title: 'FACILITY CLOSED',
+        message: 'Member check-in is disabled outside operating hours (8:00 AM – 11:00 PM Daily). Current Time: ${DateFormat('hh:mm a').format(now)}.',
       );
       return;
     }
@@ -207,15 +153,19 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen>
     final ok = await ref.read(adminNotifierProvider.notifier).checkInMember(member.id);
     if (mounted) {
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ok
-              ? '✓ TIME-IN RECORDED: Welcome ${member.name}! Enjoy your workout.'
-              : ref.read(adminNotifierProvider).errorMessage ?? 'Check-in failed.'),
-          backgroundColor: ok ? AppColors.primary : AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (ok) {
+        AppFeedbackHelper.showSuccess(
+          context,
+          title: 'TIME-IN RECORDED',
+          message: 'Welcome ${member.name}! Enjoy your workout.',
+        );
+      } else {
+        AppFeedbackHelper.showWarning(
+          context,
+          title: 'CHECK-IN FAILED',
+          message: ref.read(adminNotifierProvider).errorMessage ?? 'Check-in failed.',
+        );
+      }
     }
   }
 
@@ -1294,13 +1244,19 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen>
                           final ok = await ref.read(adminNotifierProvider.notifier).checkOutMember(selectedMember.id);
                           setState(() {});
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('✓ TIME-OUT RECORDED: Goodbye ${selectedMember.name}! Session completed.'),
-                                backgroundColor: ok ? AppColors.accent : AppColors.error,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
+                            if (ok) {
+                              AppFeedbackHelper.showSuccess(
+                                context,
+                                title: 'TIME-OUT RECORDED',
+                                message: 'Goodbye ${selectedMember.name}! Session completed.',
+                              );
+                            } else {
+                              AppFeedbackHelper.showWarning(
+                                context,
+                                title: 'CHECK-OUT FAILED',
+                                message: 'Failed to record time-out.',
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.logout_rounded, size: 22, color: Colors.black),
@@ -2304,7 +2260,7 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen>
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Operating Hours are 6:00 AM – 11:00 PM. Facility is currently closed.',
+                                  'Operating Hours are 8:00 AM – 11:00 PM. Facility is currently closed.',
                                   style: TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -2705,11 +2661,10 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen>
       await ref.read(adminNotifierProvider.notifier).checkOutMember(member.id);
       if (mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ TIME-OUT RECORDED: ${member.name} checked out!'),
-            backgroundColor: AppColors.accent,
-          ),
+        AppFeedbackHelper.showSuccess(
+          context,
+          title: 'TIME-OUT RECORDED',
+          message: '${member.name} checked out! Session completed.',
         );
       }
     } else {

@@ -53,6 +53,55 @@ class AlternativeRecommendation {
 }
 
 class ExerciseAlternativeService {
+  bool _doesEquipmentMatch(String exName, String eqName, String unitName) {
+    if (eqName.contains(unitName) || unitName.contains(eqName) || exName.contains(unitName)) {
+      return true;
+    }
+    final keywords = [
+      'treadmill',
+      'rower',
+      'row machine',
+      'bench press',
+      'squat rack',
+      'power rack',
+      'cable crossover',
+      'cable machine',
+      'cable',
+      'leg press',
+      'lat pull',
+      'pec deck',
+      'calf raise',
+      'machine curl',
+      'curl',
+      'dumbbell',
+    ];
+    for (final kw in keywords) {
+      if (unitName.contains(kw) && (eqName.contains(kw) || exName.contains(kw))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Checks whether the equipment required for this exercise is currently under maintenance.
+  bool isEquipmentUnderMaintenance(
+    ExerciseEntity exercise, {
+    List<EquipmentEntity> equipment = const [],
+  }) {
+    final eqName = exercise.equipment.toLowerCase();
+    final exName = exercise.name.toLowerCase();
+
+    for (final eq in equipment) {
+      if (eq.isUnderMaintenance || eq.isOutOfOrder) {
+        final unitName = eq.name.toLowerCase();
+        if (_doesEquipmentMatch(exName, eqName, unitName)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /// Checks whether the equipment required for this exercise is currently occupied or under maintenance in the gym,
   /// or if the facility zone hosting this equipment is at 100% capacity.
   bool isEquipmentOccupied(
@@ -75,13 +124,12 @@ class ExerciseAlternativeService {
     // Check specific equipment units
     for (final eq in equipment) {
       final unitName = eq.name.toLowerCase();
-      final matchesName = eqName.contains(unitName) || unitName.contains(eqName) || exName.contains(unitName);
-      if (matchesName) {
+      if (_doesEquipmentMatch(exName, eqName, unitName)) {
+        if (eq.isUnderMaintenance || eq.isOutOfOrder) {
+          return '${eq.name} is currently under maintenance. In-gym alternative is ready below.';
+        }
         if (eq.isOccupied) {
           return '${eq.name} is currently in-use / occupied by another member.';
-        }
-        if (eq.isUnderMaintenance || eq.isOutOfOrder) {
-          return '${eq.name} is currently under maintenance / unavailable.';
         }
 
         // Also check if the zone where this equipment resides is fully occupied
@@ -607,30 +655,30 @@ class ExerciseAlternativeService {
         AlternativeRecommendation(
           originalExerciseName: exercise.name,
           originalEquipment: exercise.equipment,
-          alternativeName: 'Assault AirBike Sprints / Stationary Spin Bike',
-          alternativeEquipment: 'AirBike or Spin Bike',
+          alternativeName: 'Stationary Upright Bike Intervals',
+          alternativeEquipment: 'Stationary Bike',
           muscleGroup: 'Cardiovascular & Lower Body',
           sets: exercise.sets,
           reps: exercise.reps.contains('min') ? exercise.reps : '15-20 mins',
           restSec: 45,
-          instructions: 'Maintain vigorous aerobic cadence. Incorporate 30s high-intensity bursts every 2 minutes.',
+          instructions: 'Maintain smooth rotational pedal cadence (80-90 RPM). Incorporate 30s higher-resistance intervals every 2 minutes.',
           matchPercentage: 96,
-          aiRationale: 'Provides high caloric burn and VO2 max improvement with zero joint impact when treadmills are fully occupied.',
+          aiRationale: 'Provides high caloric burn and VO2 max improvement with low joint impact in the cardio deck while treadmill is under maintenance.',
           isOccupied: isOcc,
           occupiedReason: notice,
         ),
         AlternativeRecommendation(
           originalExerciseName: exercise.name,
           originalEquipment: exercise.equipment,
-          alternativeName: 'Concept2 Rower Intervals',
-          alternativeEquipment: 'Rowing Machine',
+          alternativeName: 'Row Machine Conditioning Sprints',
+          alternativeEquipment: 'Row Machine',
           muscleGroup: 'Full Body Cardiovascular',
           sets: '5 rounds',
           reps: '250m intervals',
           restSec: 60,
           instructions: 'Drive through heels, open hips, pull handle to lower ribs. Rest 60s between 250m sprints.',
           matchPercentage: 94,
-          aiRationale: 'Recruits 85% of total body skeletal muscle mass, burning more calories per minute than steady-state running.',
+          aiRationale: 'Recruits 85% of total body skeletal muscle mass using the in-gym Row Machine for optimal metabolic conditioning.',
           isOccupied: isOcc,
           occupiedReason: notice,
         ),
@@ -638,12 +686,12 @@ class ExerciseAlternativeService {
           originalExerciseName: exercise.name,
           originalEquipment: exercise.equipment,
           alternativeName: 'Speed Jump Rope Intervals & High Knees',
-          alternativeEquipment: 'Jump Rope & Mat',
+          alternativeEquipment: 'Jump Rope & Turf Mat',
           muscleGroup: 'Cardiovascular & Calves',
           sets: '6 rounds',
           reps: '45s on / 15s off',
           restSec: 30,
-          instructions: 'Stay light on balls of feet. Alternate between speed skips, double-unders, and running high knees.',
+          instructions: 'Perform on the functional turf area. Alternate between speed skips, double-unders, and running high knees.',
           matchPercentage: 90,
           aiRationale: 'Immediate high-intensity cardio workout that can be done anywhere in the gym turf with no machine wait time.',
           isOccupied: isOcc,
