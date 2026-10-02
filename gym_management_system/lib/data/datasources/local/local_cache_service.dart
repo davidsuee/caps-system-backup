@@ -65,6 +65,9 @@ class LocalCacheService {
             if (item is Map) {
               final map = Map<String, dynamic>.from(item);
               var u = UserModel.fromJson(map, map['id']?.toString() ?? '');
+              if (u.id == 'coach_demo_02' || u.id == 'coach_demo_03') {
+                continue;
+              }
               if (u.role == UserRole.coach && u.maxClients < 20) {
                 u = UserModel.fromEntity(u.copyWith(maxClients: 20));
               }
@@ -173,6 +176,16 @@ class LocalCacheService {
           }
         }
       }
+
+      final pwJson = prefs.getString('vicious_cached_passwords');
+      if (pwJson != null && pwJson.isNotEmpty) {
+        final decodedPw = jsonDecode(pwJson);
+        if (decodedPw is Map) {
+          for (final entry in decodedPw.entries) {
+            _userPasswords[entry.key.toString().toLowerCase().trim()] = entry.value.toString();
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[LocalCacheService] Error loading from prefs: $e');
     }
@@ -270,8 +283,19 @@ class LocalCacheService {
     }
   }
 
+  void _persistPasswords() {
+    try {
+      final prefs = _prefs;
+      if (prefs == null) return;
+      prefs.setString('vicious_cached_passwords', jsonEncode(_userPasswords));
+    } catch (e) {
+      debugPrint('[LocalCacheService] Error persisting passwords: $e');
+    }
+  }
+
   UserModel? _currentUser;
   final Map<String, UserModel> _users = {};
+  final Map<String, String> _userPasswords = {};
   final Map<String, WorkoutPlanModel> _activeWorkouts = {};
   final Map<String, MealPlanModel> _activeMeals = {};
   final Map<String, MembershipModel> _memberships = {};
@@ -304,40 +328,6 @@ class LocalCacheService {
       activityLevel: 'Very Active',
       experienceLevel: 'Advanced',
       createdAt: DateTime.now().subtract(const Duration(days: 120)),
-    );
-
-    final coachElena = UserModel(
-      id: 'coach_demo_02',
-      name: 'Coach Elena Rostova',
-      email: 'elena.coach@gym.com',
-      role: UserRole.coach,
-      specialization: 'Fat Loss & Functional HIIT',
-      maxClients: 20,
-      age: 28,
-      heightCm: 165.0,
-      weightKg: 55.0,
-      gender: 'Female',
-      fitnessGoal: 'Cardiovascular Health',
-      activityLevel: 'Very Active',
-      experienceLevel: 'Advanced',
-      createdAt: DateTime.now().subtract(const Duration(days: 90)),
-    );
-
-    final coachDave = UserModel(
-      id: 'coach_demo_03',
-      name: 'Coach Dave Bautista',
-      email: 'dave.coach@gym.com',
-      role: UserRole.coach,
-      specialization: 'Bodybuilding & Hypertrophy',
-      maxClients: 20,
-      age: 35,
-      heightCm: 188.0,
-      weightKg: 98.0,
-      gender: 'Male',
-      fitnessGoal: 'Muscle Hypertrophy',
-      activityLevel: 'Very Active',
-      experienceLevel: 'Advanced',
-      createdAt: DateTime.now().subtract(const Duration(days: 60)),
     );
 
     final demoAdmin = UserModel(
@@ -393,10 +383,6 @@ class LocalCacheService {
 
     _users[demoCoach.email.toLowerCase()] = demoCoach;
     _users[demoCoach.id] = demoCoach;
-    _users[coachElena.email.toLowerCase()] = coachElena;
-    _users[coachElena.id] = coachElena;
-    _users[coachDave.email.toLowerCase()] = coachDave;
-    _users[coachDave.id] = coachDave;
 
     _users[demoAdmin.email.toLowerCase()] = demoAdmin;
     _users[demoAdmin.id] = demoAdmin;
@@ -407,6 +393,14 @@ class LocalCacheService {
     _users[member2.id] = member2;
     _users[member3.email.toLowerCase()] = member3;
     _users[member3.id] = member3;
+
+    // Seed default credentials for baseline accounts
+    _userPasswords['coach@gym.com'] = 'password123';
+    _userPasswords['staff@gym.com'] = 'password123';
+    _userPasswords['admin@gym.com'] = 'password123';
+    _userPasswords['sarah.j@example.com'] = 'password123';
+    _userPasswords['michael.r@example.com'] = 'password123';
+    _userPasswords['elena.r@example.com'] = 'password123';
 
     // Seed Facility Zones (ERD Table 10.0)
     final fac1 = FacilityModel(
@@ -624,6 +618,44 @@ class LocalCacheService {
     _persistUsers();
   }
 
+  void deleteUser(String userId) {
+    UserModel? userToRemove;
+    for (final u in _users.values) {
+      if (u.id == userId) {
+        userToRemove = u;
+        break;
+      }
+    }
+    if (userToRemove != null) {
+      _users.remove(userToRemove.email.toLowerCase().trim());
+      _users.remove(userToRemove.id);
+      _userPasswords.remove(userToRemove.email.toLowerCase().trim());
+      _persistUsers();
+      _persistPasswords();
+    }
+  }
+
+  void saveUserPassword(String email, String password) {
+    if (email.isEmpty) return;
+    _userPasswords[email.toLowerCase().trim()] = password;
+    _persistPasswords();
+  }
+
+  String? getUserPassword(String email) {
+    if (email.isEmpty) return null;
+    return _userPasswords[email.toLowerCase().trim()];
+  }
+
+  bool verifyUserPassword(String email, String password) {
+    final clean = email.toLowerCase().trim();
+    final stored = _userPasswords[clean];
+    if (stored == null) {
+      // Allow default password123 for seeded accounts
+      return password == 'password123';
+    }
+    return stored == password;
+  }
+
   WorkoutPlanModel? getWorkoutPlan(String userId) => _activeWorkouts[userId];
   void saveWorkoutPlan(WorkoutPlanModel plan) {
     _activeWorkouts[plan.userId] = plan;
@@ -748,8 +780,8 @@ class LocalCacheService {
 
   void logAttendance(AttendanceModel a) => addAttendance(a);
 
-  AttendanceModel? getActiveAttendance(String userId) {
-    autoCheckOutClosedSessions();
+  AttendanceModel? getActiveAttendance(String userId, [DateTime? currentTime]) {
+    autoCheckOutClosedSessions(currentTime);
     for (final a in _attendance) {
       if (a.userId == userId && a.checkOutTime == null) return a;
     }

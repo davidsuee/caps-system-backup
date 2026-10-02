@@ -8,6 +8,7 @@ import '../../../core/widgets/custom_textfield.dart';
 import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/user_entity.dart';
+import '../../coach/providers/coach_provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context.go(AppRoutes.memberDashboard);
           break;
         case UserRole.coach:
-          context.go(AppRoutes.coachDashboard);
+          await ref.read(coachNotifierProvider.notifier).loadDashboard(user.id);
+          if (mounted) context.go(AppRoutes.coachDashboard);
           break;
         case UserRole.admin:
           context.go(AppRoutes.adminDashboard);
@@ -228,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
-                  validator: Validators.password,
+                  validator: Validators.loginPassword,
                   onFieldSubmitted: (_) => _handleLogin(),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -354,6 +356,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: 'sarah.j@example.com',
             icon: Icons.person_rounded,
             color: Colors.tealAccent,
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: context.elevatedSurface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.borderLine),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.shield_outlined, size: 14, color: AppColors.accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Coach accounts are provisioned exclusively by Gym Administrators.',
+                    style: TextStyle(color: context.subtitleColor, fontSize: 10, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/bmi_calculator.dart';
 import '../../../data/models/user_model.dart';
+import '../../../domain/entities/user_entity.dart';
 import '../../../data/models/workout_plan_model.dart';
 import '../../../data/models/meal_plan_model.dart';
 import '../../../data/datasources/local/local_cache_service.dart';
@@ -56,14 +57,26 @@ class CoachNotifier extends Notifier<CoachState> {
   @override
   CoachState build() {
     _repo = ref.read(coachRepositoryProvider);
-    final cachedClients = _repo.getCachedAssignedClients();
-    final cachedWorkouts = _repo.getCachedWorkoutPlans();
-    final cachedMeals = _repo.getCachedMealPlans();
+    final curUser = LocalCacheService().getCurrentUser();
+    if (curUser == null || curUser.role != UserRole.coach) {
+      return const CoachState(
+        isLoading: false,
+        clients: [],
+        clientWorkouts: {},
+        clientMeals: {},
+        sessions: [],
+      );
+    }
 
-    Future.microtask(() => loadDashboard());
+    final coachId = curUser.id;
+    final cachedClients = _repo.getCachedAssignedClients(coachId);
+    final cachedWorkouts = _repo.getCachedWorkoutPlans(coachId);
+    final cachedMeals = _repo.getCachedMealPlans(coachId);
+
+    Future.microtask(() => loadDashboard(coachId));
 
     return CoachState(
-      isLoading: cachedClients.isEmpty,
+      isLoading: false,
       clients: cachedClients,
       clientWorkouts: cachedWorkouts,
       clientMeals: cachedMeals,
@@ -74,18 +87,27 @@ class CoachNotifier extends Notifier<CoachState> {
     if (_isFetching) return;
     _isFetching = true;
 
-    // Only set full loading indicator if we don't have clients cached yet
-    if (state.clients.isEmpty) {
-      state = state.copyWith(isLoading: true, errorMessage: null);
+    final curUser = LocalCacheService().getCurrentUser();
+    final effectiveCoachId = coachId ?? (curUser?.role == UserRole.coach ? curUser?.id : null);
+
+    if (effectiveCoachId == null) {
+      state = state.copyWith(
+        isLoading: false,
+        clients: const [],
+        clientWorkouts: const {},
+        clientMeals: const {},
+        sessions: const [],
+      );
+      _isFetching = false;
+      return;
     }
 
     try {
-      // Execute all fetches in parallel for maximum speed
       final results = await Future.wait([
-        _repo.getAssignedClients(),
-        _repo.getAllClientWorkoutPlans(),
-        _repo.getAllClientMealPlans(),
-        _repo.getCoachSessions(coachId ?? 'coach_demo_01'),
+        _repo.getAssignedClients(effectiveCoachId),
+        _repo.getAllClientWorkoutPlans(effectiveCoachId),
+        _repo.getAllClientMealPlans(effectiveCoachId),
+        _repo.getCoachSessions(effectiveCoachId),
       ]);
 
       final clients = results[0] as List<UserModel>;
@@ -109,6 +131,10 @@ class CoachNotifier extends Notifier<CoachState> {
     } finally {
       _isFetching = false;
     }
+  }
+
+  void reset() {
+    state = const CoachState();
   }
 
   Future<bool> approveWorkout(String clientUserId, [String? notes]) async {
@@ -151,8 +177,7 @@ class CoachNotifier extends Notifier<CoachState> {
 
   Future<bool> scheduleSession(TrainingSessionModel session) async {
     final h = session.dateTime.hour;
-    final m = session.dateTime.minute;
-    if (h < 8 || h > 23 || (h == 23 && m > 0)) {
+    if (h < 8 || h >= 23) {
       state = state.copyWith(errorMessage: 'Cannot schedule session outside gym operating hours (8:00 AM – 11:00 PM).');
       return false;
     }
@@ -218,7 +243,11 @@ class CoachNotifier extends Notifier<CoachState> {
         gender: client.gender,
       );
       final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: client.activityLevel);
-      final tCal = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: client.fitnessGoal);
+      final tCal = BmiCalculator.calculateTargetCalories(
+        tdee: tdee,
+        fitnessGoal: client.fitnessGoal,
+        bmi: client.bmi,
+      );
       final macros = BmiCalculator.calculateTargetMacros(targetCalories: tCal, fitnessGoal: client.fitnessGoal);
 
       final repo = MealRepositoryImpl();

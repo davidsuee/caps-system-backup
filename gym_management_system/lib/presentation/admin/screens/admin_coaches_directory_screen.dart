@@ -6,6 +6,7 @@ import '../../../core/widgets/theme_toggle_button.dart';
 import '../../../data/models/user_model.dart';
 import '../../../domain/entities/trainer_assignment_entity.dart';
 import '../providers/admin_provider.dart';
+import '../widgets/add_coach_dialog.dart';
 
 class AdminCoachesDirectoryScreen extends ConsumerStatefulWidget {
   const AdminCoachesDirectoryScreen({super.key});
@@ -403,6 +404,25 @@ class _AdminCoachesDirectoryScreenState
           ),
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: ElevatedButton.icon(
+              onPressed: () => showAddCoachDialog(context, ref),
+              icon: const Icon(Icons.person_add_rounded, size: 15),
+              label: const Text(
+                'Add Coach',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           const ThemeToggleButton(),
           Container(
             margin: const EdgeInsets.only(right: 12),
@@ -642,6 +662,15 @@ class _AdminCoachesDirectoryScreenState
                       ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showAddCoachDialog(context, ref),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.person_add_rounded, color: Colors.white),
+        label: const Text(
+          'Add Coach',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -994,11 +1023,92 @@ class _AdminCoachesDirectoryScreenState
                   ],
                 ),
                 const SizedBox(height: 24),
+
+                // Remove Coach button (Allowed for any coach, unassigning their members)
+                OutlinedButton.icon(
+                  onPressed: () => _confirmRemoveCoach(coach),
+                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16),
+                  label: const Text(
+                    'Remove Coach from Gym',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             );
           },
         );
       },
+    );
+  }
+
+  void _confirmRemoveCoach(UserModel coach) {
+    final rootContext = context;
+    showDialog(
+      context: rootContext,
+      builder: (dlgCtx) => AlertDialog(
+        backgroundColor: rootContext.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Remove ${coach.name}?',
+                style: TextStyle(
+                  color: rootContext.titleColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to remove ${coach.name} from the gym coaching staff? Any members currently assigned to this coach will be unassigned.',
+          style: TextStyle(color: rootContext.subtitleColor, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: Text('Cancel', style: TextStyle(color: rootContext.mutedColor)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(dlgCtx);
+              Navigator.pop(rootContext);
+              final success = await ref.read(adminNotifierProvider.notifier).removeCoach(coach.id);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success
+                        ? '${coach.name} removed from gym coaching roster.'
+                        : 'Could not remove coach.',
+                  ),
+                  backgroundColor: success ? AppColors.primary : AppColors.error,
+                ),
+              );
+            },
+            child: const Text('Remove Coach'),
+          ),
+        ],
+      ),
     );
   }
 

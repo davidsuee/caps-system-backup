@@ -16,6 +16,7 @@ import '../providers/facility_provider.dart';
 import '../../../data/models/facility_model.dart';
 import '../../../data/datasources/local/local_cache_service.dart';
 import '../widgets/admin_sidebar_navigation.dart';
+import '../widgets/add_coach_dialog.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -232,7 +233,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                             onTap: () => context.push(AppRoutes.adminAttendance),
                           ),
                         ),
-                        Expanded(child: _AdminKpi('${kpi?.retentionRate.toStringAsFixed(1) ?? '95.0'}%', 'Retention', Colors.purpleAccent)),
                       ],
                     ),
                   ],
@@ -1547,16 +1547,16 @@ class _AdminKpi extends StatelessWidget {
   }
 }
 
-class _TrainerWorkloadTrackerSection extends StatefulWidget {
+class _TrainerWorkloadTrackerSection extends ConsumerStatefulWidget {
   final AdminState adminState;
 
   const _TrainerWorkloadTrackerSection({required this.adminState});
 
   @override
-  State<_TrainerWorkloadTrackerSection> createState() => _TrainerWorkloadTrackerSectionState();
+  ConsumerState<_TrainerWorkloadTrackerSection> createState() => _TrainerWorkloadTrackerSectionState();
 }
 
-class _TrainerWorkloadTrackerSectionState extends State<_TrainerWorkloadTrackerSection> {
+class _TrainerWorkloadTrackerSectionState extends ConsumerState<_TrainerWorkloadTrackerSection> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -1646,28 +1646,49 @@ class _TrainerWorkloadTrackerSectionState extends State<_TrainerWorkloadTrackerS
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                onTap: () => context.push(AppRoutes.adminCoachesDirectory),
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: context.elevatedSurface,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => showAddCoachDialog(context, ref),
+                    icon: const Icon(Icons.person_add_rounded, size: 14),
+                    label: const Text(
+                      'Add Coach',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => context.push(AppRoutes.adminCoachesDirectory),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: context.borderLine),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$totalAssignedCount ASSIGNED',
-                        style: TextStyle(color: context.subtitleColor, fontSize: 10, fontWeight: FontWeight.w800),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: context.elevatedSurface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: context.borderLine),
                       ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 9, color: context.mutedColor),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$totalAssignedCount ASSIGNED',
+                            style: TextStyle(color: context.subtitleColor, fontSize: 10, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 9, color: context.mutedColor),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),

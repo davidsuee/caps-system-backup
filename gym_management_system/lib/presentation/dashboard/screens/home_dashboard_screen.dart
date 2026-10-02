@@ -53,7 +53,11 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               gender: user.gender,
             );
             final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
-            final tCal = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: user.fitnessGoal);
+            final tCal = BmiCalculator.calculateTargetCalories(
+              tdee: tdee,
+              fitnessGoal: user.fitnessGoal,
+              bmi: user.bmi,
+            );
             final macros = BmiCalculator.calculateTargetMacros(targetCalories: tCal, fitnessGoal: user.fitnessGoal);
 
             ref.read(mealNotifierProvider.notifier).generateMealPlan(

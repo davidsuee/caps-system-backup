@@ -49,7 +49,11 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
   void initState() {
     super.initState();
     _progressRepo = ProgressRepositoryImpl();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final user = ref.read(authNotifierProvider).user ?? LocalCacheService().getCurrentUser();
+      if (user != null && user.role == UserRole.coach) {
+        await ref.read(coachNotifierProvider.notifier).loadDashboard(user.id);
+      }
       final coachState = ref.read(coachNotifierProvider);
       if (coachState.clients.isNotEmpty) {
         final firstClient = coachState.clients.first;
@@ -768,21 +772,12 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
     }
 
     String selectedMemberId = assignedClients.first.id;
-    String selectedFocus = 'Strength & Technique Coaching';
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
     TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
     String? validationError;
 
-    final focusOptions = [
-      'Strength & Technique Coaching',
-      'Hypertrophy & Form Check',
-      'Biometric Weigh-in & Consultation',
-      'Cardio & Conditioning Session',
-      'Nutrition & Macro Planning',
-    ];
-
     bool isOutsideOperatingHours(TimeOfDay t) {
-      return t.hour < 8 || t.hour > 23 || (t.hour == 23 && t.minute > 0);
+      return t.hour < 8 || t.hour >= 23;
     }
 
     showModalBottomSheet(
@@ -795,6 +790,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isOutsideHours = isOutsideOperatingHours(selectedTime);
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 24,
@@ -874,35 +871,6 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text(
-                    'Session Focus / Program',
-                    style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: context.elevatedSurface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.borderLine),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedFocus,
-                        isExpanded: true,
-                        dropdownColor: context.cardColor,
-                        items: focusOptions.map((f) {
-                          return DropdownMenuItem(value: f, child: Text(f, style: TextStyle(color: context.titleColor)));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setModalState(() => selectedFocus = val);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -940,27 +908,34 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                               initialTime: selectedTime,
                             );
                             if (picked != null) {
-                              if (isOutsideOperatingHours(picked)) {
-                                setModalState(() {
-                                  validationError = 'Gym closed: Sessions must be scheduled between 8:00 AM and 11:00 PM.';
-                                });
-                              } else {
-                                setModalState(() {
-                                  selectedTime = picked;
+                              setModalState(() {
+                                selectedTime = picked;
+                                if (isOutsideOperatingHours(picked)) {
+                                  validationError = 'Gym closed: Operating hours are strictly 8:00 AM – 11:00 PM Daily. Sessions cannot be scheduled outside operating hours.';
+                                } else {
                                   validationError = null;
-                                });
-                              }
+                                }
+                              });
                             }
                           },
-                          icon: const Icon(Icons.access_time, size: 16, color: AppColors.accent),
+                          icon: Icon(
+                            isOutsideOperatingHours(selectedTime) ? Icons.error_outline : Icons.access_time,
+                            size: 16,
+                            color: isOutsideOperatingHours(selectedTime) ? AppColors.error : AppColors.accent,
+                          ),
                           label: Text(
                             selectedTime.format(context),
-                            style: TextStyle(color: context.titleColor, fontSize: 12),
+                            style: TextStyle(
+                              color: isOutsideOperatingHours(selectedTime) ? AppColors.error : context.titleColor,
+                              fontSize: 12,
+                              fontWeight: isOutsideOperatingHours(selectedTime) ? FontWeight.w800 : FontWeight.w500,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: context.cardColor,
                             side: BorderSide(
-                              color: validationError != null ? AppColors.error : context.borderLine,
+                              color: isOutsideOperatingHours(selectedTime) ? AppColors.error : context.borderLine,
+                              width: isOutsideOperatingHours(selectedTime) ? 1.5 : 1.0,
                             ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -993,28 +968,47 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                   ],
                   const SizedBox(height: 20),
                   CustomButton(
-                    text: 'Confirm & Schedule Session',
-                    icon: Icons.check,
-                    onPressed: () async {
-                      if (isOutsideOperatingHours(selectedTime)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
-                        return;
-                      }
+                    text: isOutsideHours
+                        ? 'Facility Closed (8:00 AM – 11:00 PM)'
+                        : 'Confirm & Schedule Session',
+                    icon: isOutsideHours ? Icons.lock_clock_rounded : Icons.check,
+                    color: isOutsideHours ? context.elevatedSurface : AppColors.primary,
+                    textColor: isOutsideHours ? context.mutedColor : Colors.black,
+                    onPressed: isOutsideHours
+                        ? () {
+                            setModalState(() {
+                              validationError = 'Gym Closed: Operating hours are strictly 8:00 AM to 11:00 PM Daily. Please select a time between 8:00 AM and 11:00 PM.';
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cannot schedule session: Operating hours are strictly 8:00 AM to 11:00 PM Daily.'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        : () async {
+                            if (isOutsideOperatingHours(selectedTime)) {
+                              setModalState(() {
+                                validationError = 'Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.';
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Cannot schedule session: Operating hours are 8:00 AM to 11:00 PM Daily.'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                              return;
+                            }
 
-                      if (!assignedClients.any((c) => c.id == selectedMemberId)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('You can only schedule training sessions with your assigned clients.'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
-                        return;
-                      }
+                            if (!assignedClients.any((c) => c.id == selectedMemberId)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('You can only schedule training sessions with your assigned clients.'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                              return;
+                            }
 
                       Navigator.pop(ctx);
                       final client = assignedClients.firstWhere((c) => c.id == selectedMemberId);
@@ -1033,7 +1027,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen> {
                         memberId: client.id,
                         memberName: client.name,
                         dateTime: fullDateTime,
-                        focus: selectedFocus,
+                        focus: client.fitnessGoal.isNotEmpty ? client.fitnessGoal : 'General Fitness',
                         status: 'Confirmed',
                       );
 

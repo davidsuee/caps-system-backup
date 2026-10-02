@@ -28,34 +28,35 @@ class CoachRepositoryImpl implements CoachRepository {
   }
 
   @override
-  List<UserModel> getCachedAssignedClients() {
+  List<UserModel> getCachedAssignedClients([String? coachId]) {
     final currentUser = _localCache.getCurrentUser();
+    final effectiveCoachId = coachId ?? (currentUser != null && currentUser.role == UserRole.coach ? currentUser.id : null);
+    if (effectiveCoachId == null) return [];
+
+    final coachUser = _localCache.getUserById(effectiveCoachId) ?? (currentUser?.id == effectiveCoachId ? currentUser : null);
     final allMembers = _localCache.getUsersByRole(UserRole.member);
     final eligibleMembers = allMembers.where((u) => !_isDayPassMember(u.id)).toList();
 
-    if (currentUser != null && currentUser.role == UserRole.coach) {
-      final specific = eligibleMembers.where((u) => u.assignedCoachId == currentUser.id).toList();
-      final maxCap = (currentUser.maxClients > 0) ? currentUser.maxClients : 20;
+    final specific = eligibleMembers.where((u) => u.assignedCoachId == effectiveCoachId).toList();
+    final maxCap = (coachUser != null && coachUser.maxClients > 0) ? coachUser.maxClients : 20;
 
-      // STRICT CAPACITY ENFORCEMENT: Max 20 clients per coach!
-      if (specific.length > maxCap) {
-        final allowed = specific.sublist(0, maxCap);
-        final overflow = specific.sublist(maxCap);
-        for (final over in overflow) {
-          final unassigned = UserModel.fromEntity(over.copyWith(assignedCoachId: null, clearAssignedCoach: true));
-          _localCache.saveUser(unassigned);
-        }
-        return allowed;
+    // STRICT CAPACITY ENFORCEMENT: Max 20 clients per coach!
+    if (specific.length > maxCap) {
+      final allowed = specific.sublist(0, maxCap);
+      final overflow = specific.sublist(maxCap);
+      for (final over in overflow) {
+        final unassigned = UserModel.fromEntity(over.copyWith(assignedCoachId: null, clearAssignedCoach: true));
+        _localCache.saveUser(unassigned);
       }
-      return specific;
+      return allowed;
     }
-    return [];
+    return specific;
   }
 
   @override
-  Map<String, WorkoutPlanModel?> getCachedWorkoutPlans() {
+  Map<String, WorkoutPlanModel?> getCachedWorkoutPlans([String? coachId]) {
     final Map<String, WorkoutPlanModel?> map = {};
-    for (final user in getCachedAssignedClients()) {
+    for (final user in getCachedAssignedClients(coachId)) {
       final cached = _localCache.getWorkoutPlan(user.id);
       if (cached != null) map[user.id] = cached;
     }
@@ -63,9 +64,9 @@ class CoachRepositoryImpl implements CoachRepository {
   }
 
   @override
-  Map<String, MealPlanModel?> getCachedMealPlans() {
+  Map<String, MealPlanModel?> getCachedMealPlans([String? coachId]) {
     final Map<String, MealPlanModel?> map = {};
-    for (final user in getCachedAssignedClients()) {
+    for (final user in getCachedAssignedClients(coachId)) {
       final cached = _localCache.getMealPlan(user.id);
       if (cached != null) map[user.id] = cached;
     }
@@ -73,7 +74,7 @@ class CoachRepositoryImpl implements CoachRepository {
   }
 
   @override
-  Future<List<UserModel>> getAssignedClients() async {
+  Future<List<UserModel>> getAssignedClients([String? coachId]) async {
     if (Env.useFirebase) {
       try {
         final users = await _firestore.getUsersByRole(UserRole.member);
@@ -84,17 +85,21 @@ class CoachRepositoryImpl implements CoachRepository {
         debugPrint('[CoachRepo] Error getting assigned clients: $e');
       }
     }
-    return getCachedAssignedClients();
+    return getCachedAssignedClients(coachId);
   }
 
   @override
-  Future<Map<String, WorkoutPlanModel?>> getAllClientWorkoutPlans() async {
-    final map = getCachedWorkoutPlans();
+  Future<Map<String, WorkoutPlanModel?>> getAllClientWorkoutPlans([String? coachId]) async {
+    final assignedClients = getCachedAssignedClients(coachId);
+    final assignedIds = assignedClients.map((c) => c.id).toSet();
+    final map = getCachedWorkoutPlans(coachId);
+    if (assignedIds.isEmpty) return {};
+
     if (Env.useFirebase) {
       try {
         final plans = await _firestore.getAllWorkoutPlans();
         for (final p in plans) {
-          if (p.userId.isEmpty) continue;
+          if (p.userId.isEmpty || !assignedIds.contains(p.userId)) continue;
           final existing = map[p.userId];
           if (existing == null || p.generatedAt.isAfter(existing.generatedAt)) {
             map[p.userId] = p;
@@ -109,13 +114,17 @@ class CoachRepositoryImpl implements CoachRepository {
   }
 
   @override
-  Future<Map<String, MealPlanModel?>> getAllClientMealPlans() async {
-    final map = getCachedMealPlans();
+  Future<Map<String, MealPlanModel?>> getAllClientMealPlans([String? coachId]) async {
+    final assignedClients = getCachedAssignedClients(coachId);
+    final assignedIds = assignedClients.map((c) => c.id).toSet();
+    final map = getCachedMealPlans(coachId);
+    if (assignedIds.isEmpty) return {};
+
     if (Env.useFirebase) {
       try {
         final plans = await _firestore.getAllMealPlans();
         for (final p in plans) {
-          if (p.userId.isEmpty) continue;
+          if (p.userId.isEmpty || !assignedIds.contains(p.userId)) continue;
           final existing = map[p.userId];
           if (existing == null || p.generatedAt.isAfter(existing.generatedAt)) {
             map[p.userId] = p;
@@ -181,14 +190,14 @@ class CoachRepositoryImpl implements CoachRepository {
 
   @override
   Future<List<TrainingSessionModel>> getCoachSessions(String coachId) async {
-    return _localCache.getCoachSessions(coachId);
+    if (coachId.trim().isEmpty) return [];
+    return _localCache.getCoachSessions(coachId.trim());
   }
 
   @override
   Future<void> scheduleSession(TrainingSessionModel session) async {
     final h = session.dateTime.hour;
-    final m = session.dateTime.minute;
-    if (h < 8 || h > 23 || (h == 23 && m > 0)) {
+    if (h < 8 || h >= 23) {
       throw Exception('Cannot schedule session outside gym operating hours (8:00 AM – 11:00 PM).');
     }
     _localCache.addTrainingSession(session);

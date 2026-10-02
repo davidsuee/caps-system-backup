@@ -40,4 +40,15 @@ abstract class AdminRepository {
   Future<void> updateCoachCapacity({required String coachId, required int maxClients});
   Future<void> logMemberCheckIn(String userId);
   Future<void> logMemberCheckOut(String userId);
+  Future<UserModel> addCoach({
+    required String name,
+    required String email,
+    required String specialization,
+    required String password,
+    int maxClients = 20,
+    String? phone,
+    String? gender,
+    int? age,
+  });
+  Future<void> removeCoach(String coachId);
 }

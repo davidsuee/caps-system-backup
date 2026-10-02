@@ -456,6 +456,50 @@ class AdminNotifier extends Notifier<AdminState> {
       return false;
     }
   }
+
+  Future<UserModel?> addCoach({
+    required String name,
+    required String email,
+    required String specialization,
+    required String password,
+    int maxClients = 20,
+    String? phone,
+    String? gender,
+    int? age,
+  }) async {
+    try {
+      final coach = await _repo.addCoach(
+        name: name,
+        email: email,
+        specialization: specialization,
+        password: password,
+        maxClients: maxClients,
+        phone: phone,
+        gender: gender,
+        age: age,
+      );
+      await loadDashboard();
+      return coach;
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(errorMessage: e.toString());
+      }
+      return null;
+    }
+  }
+
+  Future<bool> removeCoach(String coachId) async {
+    try {
+      await _repo.removeCoach(coachId);
+      await loadDashboard();
+      return true;
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(errorMessage: e.toString());
+      }
+      return false;
+    }
+  }
 }
 
 final adminNotifierProvider = NotifierProvider<AdminNotifier, AdminState>(AdminNotifier.new);

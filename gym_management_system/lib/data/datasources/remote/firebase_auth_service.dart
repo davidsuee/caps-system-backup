@@ -206,6 +206,33 @@ class FirebaseAuthService {
     }
   }
 
+  /// Provisions a secondary user account in Firebase Auth (e.g., when an Admin creates a Coach)
+  /// without modifying the currently logged-in Admin's authentication state.
+  Future<String?> createSecondaryUserWithoutSessionChange(String email, String password) async {
+    final apiKey = _getApiKey();
+    final url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$apiKey';
+
+    try {
+      final response = await _dio.post(
+        url,
+        data: {
+          'email': email.trim(),
+          'password': password.trim(),
+          'returnSecureToken': false,
+        },
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final uid = data['localId'] as String?;
+      debugPrint('[FirebaseAuth] Coach user created in Firebase Auth by Admin: $uid ($email)');
+      return uid;
+    } catch (e) {
+      debugPrint('[FirebaseAuth] Notice during secondary user creation: $e');
+      return null;
+    }
+  }
+
   Future<AuthUserResult> _restSignIn(String email, String password) async {
     final apiKey = _getApiKey();
     final url = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey';

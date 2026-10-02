@@ -78,7 +78,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       gender: updated.gender,
     );
     final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: updated.activityLevel);
-    final tCal = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: updated.fitnessGoal);
+    final tCal = BmiCalculator.calculateTargetCalories(
+      tdee: tdee,
+      fitnessGoal: updated.fitnessGoal,
+      bmi: updated.bmi,
+    );
     final macros = BmiCalculator.calculateTargetMacros(targetCalories: tCal, fitnessGoal: updated.fitnessGoal);
 
     await ref.read(mealNotifierProvider.notifier).generateMealPlan(

@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/custom_textfield.dart';
+import '../../../core/utils/validators.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/bmi_calculator.dart';
 import '../../dashboard/widgets/member_app_bar.dart';
 import '../../dashboard/widgets/member_bottom_nav.dart';
+import '../../progress/providers/progress_provider.dart';
+import '../../workout/providers/workout_provider.dart';
 import '../providers/meal_provider.dart';
 import '../widgets/meal_card.dart';
 
@@ -20,7 +26,6 @@ class MealPlanScreen extends ConsumerStatefulWidget {
 
 class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   final List<String> _selectedAllergens = [];
-  double _targetCalories = 2100;
   final double _budgetLimit = 350;
 
   final List<String> _availableAllergens = ['Gluten', 'Dairy', 'Nuts', 'Eggs', 'Seafood'];
@@ -34,17 +39,6 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
         if (user.dietaryRestrictions.isNotEmpty && _selectedAllergens.isEmpty) {
           _selectedAllergens.addAll(user.dietaryRestrictions);
         }
-        final bmr = BmiCalculator.calculateBmr(
-          weightKg: user.weightKg,
-          heightCm: user.heightCm,
-          age: user.age,
-          gender: user.gender,
-        );
-        final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
-        final calculatedTarget = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: user.fitnessGoal);
-        setState(() {
-          _targetCalories = calculatedTarget;
-        });
 
         if (ref.read(mealNotifierProvider).activePlan == null) {
           ref.read(mealNotifierProvider.notifier).loadActivePlan(user.id).then((loaded) {
@@ -57,6 +51,21 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     });
   }
 
+  double _computeTargetCalories(dynamic user) {
+    final bmr = BmiCalculator.calculateBmr(
+      weightKg: user.weightKg,
+      heightCm: user.heightCm,
+      age: user.age,
+      gender: user.gender,
+    );
+    final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
+    return BmiCalculator.calculateTargetCalories(
+      tdee: tdee,
+      fitnessGoal: user.fitnessGoal,
+      bmi: user.bmi,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authNotifierProvider).user;
@@ -67,6 +76,17 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     }
 
     final plan = mealState.activePlan;
+    final bmr = BmiCalculator.calculateBmr(
+      weightKg: user.weightKg,
+      heightCm: user.heightCm,
+      age: user.age,
+      gender: user.gender,
+    );
+    final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
+    final calculatedCalories = _computeTargetCalories(user);
+    final currentCalories = plan != null ? plan.totalCalories : calculatedCalories;
+    final bmi = user.bmi;
+    final bmiCategory = BmiCalculator.getCategory(bmi);
 
     return Scaffold(
       appBar: MemberAppBar(
@@ -125,7 +145,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                     const Icon(Icons.restaurant_menu_rounded, color: AppColors.accent, size: 24),
                                     const SizedBox(width: 10),
                                     Text(
-                                      plan != null ? '${plan.totalCalories.toInt()} kcal / day' : '${_targetCalories.toInt()} kcal Target',
+                                      '${currentCalories.toInt()} kcal / day',
                                       style: TextStyle(
                                         color: context.titleColor,
                                         fontSize: 20,
@@ -141,7 +161,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    plan?.isCoachApproved == true ? 'âœ“ Coach Approved' : 'Balanced Diet',
+                                    plan?.isCoachApproved == true ? '\u2713 Coach Approved' : 'Balanced Diet',
                                     style: TextStyle(
                                       color: plan?.isCoachApproved == true ? AppColors.primary : AppColors.accent,
                                       fontSize: 11,
@@ -153,7 +173,8 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              plan?.solverMessage ?? 'Optimized macronutrient balance tailored for ${user.fitnessGoal}.',
+                              plan?.solverMessage ??
+                                  'Optimal macronutrient balance tailored for ${user.fitnessGoal} (${user.activityLevel} lifestyle: ${currentCalories.toInt()} kcal).',
                               style: TextStyle(color: context.subtitleColor, fontSize: 13, height: 1.4),
                             ),
                             const SizedBox(height: 16),
@@ -165,7 +186,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                                 const SizedBox(width: 8),
                                 _MacroBadge('Fats', '${plan?.totalFat.toInt() ?? 60}g', AppColors.accent),
                                 const SizedBox(width: 8),
-                                _MacroBadge('Est. Cost', 'â‚±${plan?.totalCost.toStringAsFixed(0) ?? _budgetLimit.toInt()}', Colors.purpleAccent),
+                                _MacroBadge('Est. Cost', '\u20B1${plan?.totalCost.toStringAsFixed(0) ?? _budgetLimit.toInt()}', Colors.purpleAccent),
                               ],
                             ),
                           ],
@@ -219,25 +240,174 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Calorie Slider
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Adjust Daily Calorie Target', style: TextStyle(color: context.subtitleColor, fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text('${_targetCalories.toInt()} kcal', style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w700)),
-                        ],
+                      // Calorie Target Card (Locked to Member BMI & Fitness Goal)
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: context.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.accent.withValues(alpha: 0.35),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accent.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.calculate_rounded, color: AppColors.accent, size: 18),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Daily Calorie Target',
+                                      style: TextStyle(
+                                        color: context.titleColor,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock_rounded, color: Colors.amber, size: 12),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Locked to BMI & Goal',
+                                        style: TextStyle(
+                                          color: Colors.amber,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  '${currentCalories.toInt()} kcal',
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '/ day target',
+                                  style: TextStyle(color: context.mutedColor, fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                _BadgeChip(
+                                  icon: Icons.monitor_weight_outlined,
+                                  label: 'BMI: ${bmi.toStringAsFixed(1)} ($bmiCategory)',
+                                  color: AppColors.primary,
+                                ),
+                                _BadgeChip(
+                                  icon: Icons.flag_rounded,
+                                  label: 'Goal: ${user.fitnessGoal}',
+                                  color: AppColors.accentCyan,
+                                ),
+                                _BadgeChip(
+                                  icon: Icons.local_fire_department_rounded,
+                                  label: BmiCalculator.getGoalCalorieAdjustmentDescription(user.fitnessGoal, bmi),
+                                  color: AppColors.accent,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: context.elevatedSurface.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: context.borderLine.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.info_outline_rounded, color: context.mutedColor, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Target calories are determined automatically from your BMI, BMR (${bmr.toInt()} kcal), TDEE (${tdee.toInt()} kcal), and fitness goal. Direct manual adjustment is disabled. Your calorie target will only change when you log an improvement or update your biometrics.',
+                                      style: TextStyle(color: context.subtitleColor, fontSize: 12, height: 1.35),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.trending_up_rounded, size: 16),
+                                    label: const Text('Log Improvement'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(color: AppColors.primary),
+                                      padding: const EdgeInsets.symmetric(vertical: 11),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => _showLogImprovementSheet(user),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.tune_rounded, size: 16),
+                                  label: const Text('Edit Goal'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: context.subtitleColor,
+                                    side: BorderSide(color: context.borderLine),
+                                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  onPressed: () => context.go(AppRoutes.profile),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      Slider(
-                        value: _targetCalories,
-                        min: 1400,
-                        max: 3800,
-                        divisions: 24,
-                        activeColor: AppColors.accent,
-                        inactiveColor: context.elevatedSurface,
-                        onChanged: (v) => setState(() => _targetCalories = v),
-                      ),
+                      const SizedBox(height: 14),
 
-                      const SizedBox(height: 12),
                       CustomButton(
                         text: plan == null ? 'Generate Daily Meal Plan' : 'Refresh Daily Meal Plan',
                         icon: Icons.restaurant_rounded,
@@ -331,13 +501,14 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   void _runOptimizer() {
     final user = ref.read(authNotifierProvider).user;
     if (user == null) return;
+    final targetCalories = _computeTargetCalories(user);
     final macros = BmiCalculator.calculateTargetMacros(
-      targetCalories: _targetCalories,
+      targetCalories: targetCalories,
       fitnessGoal: user.fitnessGoal,
     );
     ref.read(mealNotifierProvider.notifier).generateMealPlan(
       user: user,
-      targetCalories: _targetCalories,
+      targetCalories: targetCalories,
       targetProtein: macros.protein,
       targetCarbs: macros.carbs,
       targetFat: macros.fat,
@@ -345,8 +516,196 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
       budgetLimit: _budgetLimit,
     );
   }
+
+  void _showLogImprovementSheet(dynamic user) {
+    final weightController = TextEditingController(text: user.weightKg.toStringAsFixed(1));
+    final bodyFatController = TextEditingController();
+    final notesController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.trending_up_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Set Progress Improvement',
+                        style: TextStyle(color: context.titleColor, fontSize: 18, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: context.mutedColor),
+                    onPressed: () => Navigator.pop(sheetCtx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Log your new weight to recalculate your BMI and automatically calibrate your daily calorie and macronutrient targets.',
+                style: TextStyle(color: context.subtitleColor, fontSize: 12, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: weightController,
+                label: 'Current Weight (kg)',
+                hint: 'e.g. 71.5',
+                keyboardType: TextInputType.number,
+                validator: (v) => Validators.number(v, 'Enter valid weight'),
+              ),
+              const SizedBox(height: 14),
+              CustomTextField(
+                controller: bodyFatController,
+                label: 'Body Fat % (optional)',
+                hint: 'e.g. 15.2',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 14),
+              CustomTextField(
+                controller: notesController,
+                label: 'Improvement Notes (optional)',
+                hint: 'e.g. Weight improvement, feeling leaner',
+              ),
+              const SizedBox(height: 20),
+              CustomButton(
+                text: 'Save Improvement & Update Calories',
+                icon: Icons.check_circle_outline_rounded,
+                onPressed: () async {
+                  final w = double.tryParse(weightController.text.trim());
+                  if (w == null || w <= 0) return;
+                  final bf = double.tryParse(bodyFatController.text.trim());
+                  final notes = notesController.text.trim().isNotEmpty ? notesController.text.trim() : null;
+
+                  // 1. Add log to progress provider
+                  ref.read(progressNotifierProvider.notifier).addLog(
+                    userId: user.id,
+                    weightKg: w,
+                    bodyFat: bf,
+                    notes: notes,
+                    user: user,
+                  );
+
+                  Navigator.pop(sheetCtx);
+
+                  // 2. Update active user profile with new bodyweight
+                  final updatedUser = user.copyWith(weightKg: w);
+                  await ref.read(authNotifierProvider.notifier).updateProfile(updatedUser);
+
+                  // 3. Trigger AI workout adaptations
+                  await ref.read(workoutNotifierProvider.notifier).generatePlan(updatedUser);
+
+                  // 4. Calculate new BMR, TDEE, Calories based on new BMI and Goal
+                  final bmr = BmiCalculator.calculateBmr(
+                    weightKg: updatedUser.weightKg,
+                    heightCm: updatedUser.heightCm,
+                    age: updatedUser.age,
+                    gender: updatedUser.gender,
+                  );
+                  final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: updatedUser.activityLevel);
+                  final tCal = BmiCalculator.calculateTargetCalories(
+                    tdee: tdee,
+                    fitnessGoal: updatedUser.fitnessGoal,
+                    bmi: updatedUser.bmi,
+                  );
+                  final macros = BmiCalculator.calculateTargetMacros(
+                    targetCalories: tCal,
+                    fitnessGoal: updatedUser.fitnessGoal,
+                  );
+
+                  // 5. Generate updated meal plan
+                  await ref.read(mealNotifierProvider.notifier).generateMealPlan(
+                    user: updatedUser,
+                    targetCalories: tCal,
+                    targetProtein: macros.protein,
+                    targetCarbs: macros.carbs,
+                    targetFat: macros.fat,
+                    dietaryRestrictions: _selectedAllergens,
+                    budgetLimit: _budgetLimit,
+                  );
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Improvement saved! Weight: ${w}kg • BMI: ${updatedUser.bmi} • Calories updated to ${tCal.toInt()} kcal!'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
+class _BadgeChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _BadgeChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _MacroBadge extends StatelessWidget {
   final String label;

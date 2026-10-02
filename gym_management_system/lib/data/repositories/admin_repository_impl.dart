@@ -8,16 +8,20 @@ import '../../domain/repositories/admin_repository.dart';
 import '../models/user_model.dart';
 import '../models/membership_model.dart';
 import '../datasources/remote/firestore_service.dart';
+import '../datasources/remote/firebase_auth_service.dart';
 import '../datasources/local/local_cache_service.dart';
 
 class AdminRepositoryImpl implements AdminRepository {
   final FirestoreService _firestore;
+  final FirebaseAuthService _firebaseAuth;
   final LocalCacheService _localCache;
 
   AdminRepositoryImpl({
     FirestoreService? firestore,
+    FirebaseAuthService? firebaseAuth,
     LocalCacheService? localCache,
   })  : _firestore = firestore ?? FirestoreService(),
+        _firebaseAuth = firebaseAuth ?? FirebaseAuthService(),
         _localCache = localCache ?? LocalCacheService();
 
   List<UserModel> _enforceCoachCapacityLimits(List<UserModel> members, {Set<String>? localMemberIds}) {
@@ -278,15 +282,19 @@ class AdminRepositoryImpl implements AdminRepository {
     for (final coach in coaches) {
       final spec = (coach.specialization ?? '').toLowerCase();
       if ((goal.contains('weight') || goal.contains('fat') || goal.contains('loss') || goal.contains('cardio') || goal.contains('burn')) &&
-          (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional'))) {
+          (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional') || spec.contains('weight'))) {
         return coach;
       }
       if ((goal.contains('muscle') || goal.contains('gain') || goal.contains('hypertrophy') || goal.contains('bodybuilding')) &&
-          (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding'))) {
+          (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding') || spec.contains('gain'))) {
         return coach;
       }
       if ((goal.contains('strength') || goal.contains('endurance') || goal.contains('conditioning') || goal.contains('power') || goal.contains('stamina')) &&
           (spec.contains('strength') || spec.contains('conditioning') || spec.contains('endurance'))) {
+        return coach;
+      }
+      if ((goal.contains('general') || goal.contains('fitness') || goal.contains('mobility') || goal.contains('health')) &&
+          (spec.contains('general') || spec.contains('fitness') || spec.contains('mobility'))) {
         return coach;
       }
     }
@@ -599,14 +607,16 @@ class AdminRepositoryImpl implements AdminRepository {
         int specScore = 20; // baseline compatibility
 
         if ((goal.contains('weight') || goal.contains('fat') || goal.contains('loss') || goal.contains('cardio')) &&
-            (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional'))) {
+            (spec.contains('fat') || spec.contains('loss') || spec.contains('hiit') || spec.contains('functional') || spec.contains('weight'))) {
           specScore = 40;
         } else if ((goal.contains('muscle') || goal.contains('gain') || goal.contains('hypertrophy') || goal.contains('bodybuilding')) &&
-            (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding'))) {
+            (spec.contains('hypertrophy') || spec.contains('muscle') || spec.contains('bodybuilding') || spec.contains('gain'))) {
           specScore = 40;
         } else if ((goal.contains('strength') || goal.contains('endurance') || goal.contains('conditioning') || goal.contains('power')) &&
-            (spec.contains('strength') || spec.contains('conditioning'))) {
+            (spec.contains('strength') || spec.contains('conditioning') || spec.contains('endurance'))) {
           specScore = 40;
+        } else if (spec.contains('general') || goal.contains('general') || spec.contains('fitness') || goal.contains('fitness')) {
+          specScore = 35;
         }
 
         // 2. Workload balance score (up to 40 pts - inverse of load ratio)
@@ -669,6 +679,73 @@ class AdminRepositoryImpl implements AdminRepository {
         } catch (_) {}
       }
     }
+  }
+
+  @override
+  Future<UserModel> addCoach({
+    required String name,
+    required String email,
+    required String specialization,
+    required String password,
+    int maxClients = 20,
+    String? phone,
+    String? gender,
+    int? age,
+  }) async {
+    final cleanEmail = email.toLowerCase().trim();
+    String coachId = 'coach_${DateTime.now().millisecondsSinceEpoch}';
+
+    if (Env.useFirebase) {
+      try {
+        final authUid = await _firebaseAuth.createSecondaryUserWithoutSessionChange(cleanEmail, password);
+        if (authUid != null && authUid.isNotEmpty) {
+          coachId = authUid;
+        }
+      } catch (e) {
+        debugPrint('[AdminRepo] Notice during Firebase Auth secondary user creation: $e');
+      }
+    }
+
+    final newCoach = UserModel(
+      id: coachId,
+      name: name.trim(),
+      email: cleanEmail,
+      role: UserRole.coach,
+      specialization: specialization.trim(),
+      maxClients: maxClients > 0 ? maxClients : 20,
+      gender: gender ?? 'Male',
+      age: age ?? 30,
+      fitnessGoal: 'General Fitness',
+      activityLevel: 'Very Active',
+      experienceLevel: 'Advanced',
+      createdAt: DateTime.now(),
+    );
+
+    _localCache.saveUser(newCoach);
+    _localCache.saveUserPassword(cleanEmail, password);
+
+    if (Env.useFirebase) {
+      try {
+        await _firestore.saveUser(newCoach);
+      } catch (_) {}
+    }
+    return newCoach;
+  }
+
+  @override
+  Future<void> removeCoach(String coachId) async {
+    // Unassign any members currently assigned to this coach
+    final allMembers = _localCache.getUsersByRole(UserRole.member);
+    for (final member in allMembers) {
+      if (member.assignedCoachId == coachId) {
+        final unassigned = UserModel.fromEntity(member.copyWith(clearAssignedCoach: true));
+        _localCache.saveUser(unassigned);
+        if (Env.useFirebase) {
+          _firestore.saveUser(unassigned).catchError((_) {});
+        }
+      }
+    }
+    _localCache.deleteUser(coachId);
   }
 }
 

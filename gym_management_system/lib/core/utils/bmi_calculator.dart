@@ -49,22 +49,40 @@ class BmiCalculator {
     return bmr * factor;
   }
 
-  /// Calculates target daily calories based on TDEE and Fitness Goal
+  /// Calculates target daily calories based on TDEE, Fitness Goal, and BMI
   static double calculateTargetCalories({
     required double tdee,
     required String fitnessGoal,
+    double? bmi,
   }) {
     final goal = fitnessGoal.toLowerCase();
     if (goal.contains('loss')) {
-      // 500 kcal deficit for safe fat loss, floor at 1200 kcal
-      return (tdee - 500).clamp(1200.0, 5000.0).roundToDouble();
+      // 500-600 kcal deficit for safe fat loss, adjusted if BMI is in obese range
+      final deficit = (bmi != null && bmi >= 30.0) ? 600.0 : 500.0;
+      return (tdee - deficit).clamp(1200.0, 5000.0).roundToDouble();
     } else if (goal.contains('gain') || goal.contains('muscle')) {
-      // 350 kcal surplus for lean hypertrophy
-      return (tdee + 350).clamp(1500.0, 6000.0).roundToDouble();
+      // Hypertrophy surplus: if overweight, lean recomposition (+200), otherwise +350
+      final surplus = (bmi != null && bmi >= 25.0) ? 200.0 : 350.0;
+      return (tdee + surplus).clamp(1500.0, 6000.0).roundToDouble();
     } else if (goal.contains('endurance')) {
       return (tdee + 150).clamp(1500.0, 6000.0).roundToDouble();
     }
     return tdee.roundToDouble();
+  }
+
+  /// Human-readable explanation of how calories are calibrated from goal and BMI
+  static String getGoalCalorieAdjustmentDescription(String fitnessGoal, double? bmi) {
+    final goal = fitnessGoal.toLowerCase();
+    if (goal.contains('loss')) {
+      final deficit = (bmi != null && bmi >= 30.0) ? 600 : 500;
+      return '-$deficit kcal Deficit (Fat Loss)';
+    } else if (goal.contains('gain') || goal.contains('muscle')) {
+      final surplus = (bmi != null && bmi >= 25.0) ? 200 : 350;
+      return '+$surplus kcal Surplus (Muscle Gain)';
+    } else if (goal.contains('endurance')) {
+      return '+150 kcal Surplus (Endurance)';
+    }
+    return 'Maintenance TDEE';
   }
 
   /// Returns recommended macros (protein, carbs, fat in grams) for target calories and goal

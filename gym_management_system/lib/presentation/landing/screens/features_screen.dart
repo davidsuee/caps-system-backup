@@ -108,7 +108,7 @@ class FeaturesScreen extends StatelessWidget {
         'color': AppColors.primary,
         'tag': 'SMART WORKOUTS',
         'title': 'Personalized Exercise Routines',
-        'subtitle': 'ML Workout Recommender',
+        'subtitle': '',
         'desc':
             'Generates tailored daily workout routines based on your fitness goals, experience level, and body metrics. You always know exactly what exercises, sets, and reps to do with zero guesswork.',
         'engine': 'MACHINE LEARNING CORE',
@@ -124,7 +124,7 @@ class FeaturesScreen extends StatelessWidget {
         'color': AppColors.accentCyan,
         'tag': 'PRECISION NUTRITION',
         'title': 'Smart Daily Diet & Macros',
-        'subtitle': 'LP Meal Plan Optimizer',
+        'subtitle': '',
         'desc':
             'Builds balanced meal plans designed around your target calories and budget. Calculates optimal macronutrients to fuel your workouts using accessible, healthy everyday foods.',
         'engine': 'LINEAR OPTIMIZATION (PuLP)',
@@ -237,16 +237,18 @@ class FeaturesScreen extends StatelessWidget {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 12),
                     Text(
                       desc,

@@ -111,9 +111,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _heightController.addListener(_onBiometricsChanged);
     _weightController.addListener(_onBiometricsChanged);
     _emailController.addListener(_onEmailChanged);
+    _passwordController.addListener(_onPasswordChanged);
   }
 
   void _onBiometricsChanged() {
+    setState(() {});
+  }
+
+  void _onPasswordChanged() {
     setState(() {});
   }
 
@@ -122,6 +127,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _heightController.removeListener(_onBiometricsChanged);
     _weightController.removeListener(_onBiometricsChanged);
     _emailController.removeListener(_onEmailChanged);
+    _passwordController.removeListener(_onPasswordChanged);
     _scrollController.dispose();
     _nameController.dispose();
     _emailController.dispose();
@@ -185,8 +191,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final valid = _step1FormKey.currentState!.validate();
       if (!valid) return false;
     }
-    if (_nameController.text.trim().isEmpty) {
-      _showErrorSnackbar('Please enter your full name.');
+    final nameError = Validators.fullName(_nameController.text.trim());
+    if (nameError != null) {
+      _showErrorSnackbar(nameError);
       return false;
     }
     final emailError = Validators.email(_emailController.text.trim());
@@ -359,7 +366,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           gender: user.gender,
         );
         final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: user.activityLevel);
-        final tCal = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: user.fitnessGoal);
+        final tCal = BmiCalculator.calculateTargetCalories(
+          tdee: tdee,
+          fitnessGoal: user.fitnessGoal,
+          bmi: user.bmi,
+        );
         final macros = BmiCalculator.calculateTargetMacros(targetCalories: tCal, fitnessGoal: user.fitnessGoal);
         await ref.read(mealNotifierProvider.notifier).generateMealPlan(
           user: user,
@@ -830,7 +841,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       hint: 'e.g. Juan Dela Cruz',
                       prefixIcon: Icons.badge_outlined,
                       textInputAction: TextInputAction.next,
-                      validator: Validators.required,
+                      validator: Validators.fullName,
                       onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
                     ),
                     const SizedBox(height: 16),
@@ -893,7 +904,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     CustomTextField(
                       controller: _passwordController,
                       label: 'Password',
-                      hint: 'At least 6 characters',
+                      hint: 'At least 8 characters (Upper, Lower, Number, Symbol)',
                       prefixIcon: Icons.lock_outline_rounded,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.done,
@@ -908,6 +919,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       validator: Validators.password,
                     ),
+                    _buildPasswordRequirements(_passwordController.text, context),
                   ],
                 ),
               ),
@@ -975,6 +987,75 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPasswordRequirements(String password, BuildContext context) {
+    final hasMin = Validators.hasMinLength(password);
+    final hasUpper = Validators.hasUppercase(password);
+    final hasLower = Validators.hasLowercase(password);
+    final hasDigit = Validators.hasDigit(password);
+    final hasSpecial = Validators.hasSpecialChar(password);
+
+    Widget buildItem(String text, bool met) {
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: met ? AppColors.primary.withValues(alpha: 0.15) : context.elevatedSurface,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: met ? AppColors.primary : context.borderLine,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              size: 13,
+              color: met ? AppColors.primary : context.mutedColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: met ? FontWeight.w700 : FontWeight.w500,
+                color: met ? (context.isDark ? AppColors.primary : Colors.green.shade800) : context.subtitleColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'Password Strength Requirements:',
+          style: TextStyle(
+            color: context.titleColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            buildItem('8+ Chars', hasMin),
+            buildItem('Uppercase (A-Z)', hasUpper),
+            buildItem('Lowercase (a-z)', hasLower),
+            buildItem('Number (0-9)', hasDigit),
+            buildItem('Special Char (!@#\$)', hasSpecial),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1954,22 +2035,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       style: TextStyle(color: context.subtitleColor, fontSize: 11),
                     ),
                   ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'REQUIRED',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
-                  ),
                 ),
               ),
             ],

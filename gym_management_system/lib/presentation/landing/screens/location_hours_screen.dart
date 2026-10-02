@@ -95,7 +95,7 @@ class LocationHoursScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Plan your training sessions with confidence. Find our address, parking info, operating hours, and customer contact desk.',
+          'Plan your training sessions with confidence. Find our facility address, operating hours, and front desk reception contact numbers.',
           style: TextStyle(
             color: context.subtitleColor,
             fontSize: 15,
@@ -243,29 +243,15 @@ class LocationHoursScreen extends StatelessWidget {
         'icon': Icons.location_on_rounded,
         'color': AppColors.primary,
         'title': 'Facility Address',
-        'content': '2nd Floor, Vicious Fitness Hub\nMetro Manila, Philippines',
-        'detail': 'Located right along the main commercial strip. Direct elevator and stairwell access from the ground lobby.',
-      },
-      {
-        'icon': Icons.local_parking_rounded,
-        'color': AppColors.accentCyan,
-        'title': 'Parking & Transport',
-        'content': 'Free 2-Hour Basement Parking',
-        'detail': 'Dedicated member parking bays with security surveillance. Accessible via main road public utility routes and ride-hailing services.',
+        'content': '117 Pasig St., Maypajo, Caloocan, 1410 Metro Manila',
+        'detail': 'Direct entrance to the gym facility. Accessible along Pasig St., Maypajo.',
       },
       {
         'icon': Icons.phone_rounded,
         'color': AppColors.accent,
         'title': 'Front Desk & Reception',
-        'content': '+63 (02) 8888-GYM / +63 917 123 4567',
-        'detail': 'Customer service hotline active daily between 8:00 AM and 11:00 PM for attendance, plan activations, and coach queries.',
-      },
-      {
-        'icon': Icons.email_rounded,
-        'color': Colors.purpleAccent,
-        'title': 'Email & Online Support',
-        'content': 'support@viciousfitness.ph',
-        'detail': 'Send us inquiries anytime regarding corporate packages, membership transfers, or coach applications.',
+        'content': '0977 675 3467 | 0908 674 6755',
+        'detail': 'Customer service hotline active daily between 8:00 AM and 11:00 PM for attendance, plan activations, and inquiries.',
       },
     ];
 
@@ -387,11 +373,10 @@ class LocationHoursScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '1. Member Check-in: Please present your Digital Member Pass at the front desk reception terminal upon entering.\n'
-            '2. Time In / Time Out: All attendance is logged and verified at the front reception counter.\n'
-            '3. Operating Window: Floor access is open 8:00 AM – 11:00 PM Daily. Members must conclude workouts by 11:00 PM.\n'
-            '4. Attire: Clean indoor athletic shoes and workout clothes required. No slippers or denim on the gym floor.\n'
-            '5. Cleanliness: Wipe down machines after use and return all free weights to their assigned racks.',
+            '1. Time In / Time Out: All attendance is logged and verified at the front reception counter.\n'
+            '2. Operating Window: Floor access is open 8:00 AM – 11:00 PM Daily. Members must conclude workouts by 11:00 PM.\n'
+            '3. Attire: Clean indoor athletic shoes and workout clothes required. No slippers or denim on the gym floor.\n'
+            '4. Cleanliness: Wipe down machines after use and return all free weights to their assigned racks.',
             style: TextStyle(
               color: context.subtitleColor,
               fontSize: 13,

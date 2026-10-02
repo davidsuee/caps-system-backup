@@ -50,7 +50,7 @@ void main() {
       );
     });
 
-    test('Rejects training session scheduled after 11:00 PM (e.g., 11:05 PM)', () async {
+    test('Rejects training session scheduled after 11:00 PM (e.g., 11:05 PM and 11:30 PM)', () async {
       final sessionLate = TrainingSessionModel(
         id: 'test_session_late',
         coachId: 'coach_demo_01',
@@ -62,8 +62,38 @@ void main() {
         status: 'Confirmed',
       );
 
+      final session1130 = TrainingSessionModel(
+        id: 'test_session_1130',
+        coachId: 'coach_demo_01',
+        coachName: 'Coach Marcus Vance',
+        memberId: 'member_seed_01',
+        memberName: 'Sarah Jenkins',
+        dateTime: DateTime(2026, 10, 1, 23, 30), // 11:30 PM (outside hours)
+        focus: 'Strength & Technique Coaching',
+        status: 'Confirmed',
+      );
+
+      final session1100 = TrainingSessionModel(
+        id: 'test_session_1100',
+        coachId: 'coach_demo_01',
+        coachName: 'Coach Marcus Vance',
+        memberId: 'member_seed_01',
+        memberName: 'Sarah Jenkins',
+        dateTime: DateTime(2026, 10, 1, 23, 0), // 11:00 PM (facility closing time)
+        focus: 'Strength & Technique Coaching',
+        status: 'Confirmed',
+      );
+
       expect(
         () => coachRepo.scheduleSession(sessionLate),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        () => coachRepo.scheduleSession(session1130),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        () => coachRepo.scheduleSession(session1100),
         throwsA(isA<Exception>()),
       );
     });
@@ -132,7 +162,7 @@ void main() {
       // Verify active before closing time (e.g. at 10:45 PM)
       final timeAt1045PM = DateTime(2026, 10, 1, 22, 45);
       localCache.autoCheckOutClosedSessions(timeAt1045PM);
-      final activeAt1045 = localCache.getActiveAttendance('member_seed_01');
+      final activeAt1045 = localCache.getActiveAttendance('member_seed_01', timeAt1045PM);
       expect(activeAt1045, isNotNull);
       expect(activeAt1045?.checkOutTime, isNull);
 

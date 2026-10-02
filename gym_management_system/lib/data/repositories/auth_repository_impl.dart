@@ -60,12 +60,6 @@ class AuthRepositoryImpl implements AuthRepository {
         e == 'sarah.admin@gym.com') {
       return 'staff@gym.com';
     }
-    if (e == 'elena@viscious.com' || e == 'elena@vicious.com' || e == 'elena@gym.com' || e == 'coach.elena@gym.ph') {
-      return 'elena.coach@gym.com';
-    }
-    if (e == 'dave@viscious.com' || e == 'dave@vicious.com' || e == 'dave@gym.com' || e == 'coach.dave@gym.ph') {
-      return 'dave.coach@gym.com';
-    }
     if (e == 'member@viscious.com' || e == 'member@vicious.com' || e == 'member@gym.com') {
       return 'sarah.j@example.com';
     }
@@ -83,35 +77,45 @@ class AuthRepositoryImpl implements AuthRepository {
         final uid = cred.uid;
         var user = await _firestore.getUser(uid);
         if (user == null) {
-          // Check role based on email conventions or default
-          final inferredRole = _inferRoleFromEmail(resolvedEmail);
-          user = UserModel(
-            id: uid,
-            name: resolvedEmail.split('@').first,
-            email: resolvedEmail,
-            role: inferredRole,
-            createdAt: DateTime.now(),
-          );
-          await _firestore.saveUser(user);
+          user = _localCache.getUserByEmail(resolvedEmail) ?? _localCache.getUserByEmail(cleanEmail);
+          if (user == null) {
+            final inferredRole = _inferRoleFromEmail(resolvedEmail);
+            user = UserModel(
+              id: uid,
+              name: resolvedEmail.split('@').first,
+              email: resolvedEmail,
+              role: inferredRole,
+              createdAt: DateTime.now(),
+            );
+            await _firestore.saveUser(user);
+          }
         }
         _localCache.saveUser(user);
+        _localCache.saveUserPassword(cleanEmail, password);
         _localCache.setCurrentUser(user);
         return user;
       } catch (e) {
         debugPrint('[AuthRepository] Firebase SignIn failed: $e');
-        // Check local pre-seeded accounts for development / offline testing (e.g. coach@gym.com, staff@gym.com)
+
+        // Check local pre-seeded or Admin-created accounts
         final cached = _localCache.getUserByEmail(resolvedEmail) ??
             _localCache.getUserByEmail(cleanEmail);
         if (cached != null) {
+          if (!_localCache.verifyUserPassword(cached.email, password)) {
+            throw Exception('Incorrect password. Please verify your credentials or contact the gym administrator.');
+          }
           _localCache.setCurrentUser(cached);
           return cached;
         }
 
-        // Capstone offline fallback: if user typed coach/admin/member demo credentials
-        if (cleanEmail.contains('coach') || cleanEmail.contains('trainer')) {
+        // Capstone fallback: Head Coach (Coach Marcus Vance)
+        if (resolvedEmail == 'coach@gym.com' || cleanEmail == 'coach@gym.com') {
           final demoCoach = _localCache.getUserById('coach_demo_01') ??
               _localCache.getUsersByRole(UserRole.coach).firstOrNull;
           if (demoCoach != null) {
+            if (!_localCache.verifyUserPassword(demoCoach.email, password)) {
+              throw Exception('Incorrect password. Please verify your credentials or contact the gym administrator.');
+            }
             _localCache.setCurrentUser(demoCoach);
             return demoCoach;
           }
@@ -129,6 +133,8 @@ class AuthRepositoryImpl implements AuthRepository {
             _localCache.setCurrentUser(demoMember);
             return demoMember;
           }
+        } else if (cleanEmail.contains('coach') || cleanEmail.contains('trainer')) {
+          throw Exception('No coach account found for "$cleanEmail". Coach accounts can only be created by an Admin.');
         }
 
         rethrow;
@@ -137,30 +143,25 @@ class AuthRepositoryImpl implements AuthRepository {
 
     final user = _localCache.getUserByEmail(resolvedEmail) ?? _localCache.getUserByEmail(cleanEmail);
     if (user != null) {
+      if (!_localCache.verifyUserPassword(user.email, password)) {
+        throw Exception('Incorrect password. Please verify your credentials or contact the gym administrator.');
+      }
       _localCache.setCurrentUser(user);
       return user;
     }
 
-    final inferredRole = _inferRoleFromEmail(cleanEmail);
-    final newUser = UserModel(
-      id: const Uuid().v4(),
-      name: cleanEmail.split('@').first,
-      email: cleanEmail,
-      role: inferredRole,
-      createdAt: DateTime.now(),
-    );
-    _localCache.saveUser(newUser);
-    _localCache.setCurrentUser(newUser);
-    return newUser;
+    if (cleanEmail.contains('coach') || cleanEmail.contains('trainer')) {
+      throw Exception('No coach account found for "$cleanEmail". Coach accounts can only be created by an Admin.');
+    }
+
+    throw Exception('No account found for "$cleanEmail". Please create an account or verify your credentials.');
   }
 
   UserRole _inferRoleFromEmail(String email) {
-    if (email.contains('coach') || email.contains('trainer')) {
-      return UserRole.coach;
-    }
     if (email.contains('admin') || email.contains('staff')) {
       return UserRole.admin;
     }
+    // Any self-registered or inferred role is strictly member. Coach accounts must be Admin-created.
     return UserRole.member;
   }
 
@@ -178,6 +179,10 @@ class AuthRepositoryImpl implements AuthRepository {
     required String activityLevel,
     required String experienceLevel,
   }) async {
+    if (role == UserRole.coach) {
+      throw Exception('Coach accounts cannot be self-registered. They must be registered by a Gym Administrator.');
+    }
+
     final cleanEmail = email.toLowerCase().trim();
 
     if (Env.useFirebase) {
@@ -210,6 +215,7 @@ class AuthRepositoryImpl implements AuthRepository {
           await _firestore.addProgressLog(initialLog);
         } catch (_) {}
         _localCache.saveUser(user);
+        _localCache.saveUserPassword(cleanEmail, password);
         _localCache.setCurrentUser(user);
         _localCache.addProgressLog(initialLog);
         return user;
@@ -244,6 +250,7 @@ class AuthRepositoryImpl implements AuthRepository {
       notes: 'Initial weigh-in',
     );
     _localCache.saveUser(newUser);
+    _localCache.saveUserPassword(cleanEmail, password);
     _localCache.setCurrentUser(newUser);
     _localCache.addProgressLog(initialLog);
     return newUser;

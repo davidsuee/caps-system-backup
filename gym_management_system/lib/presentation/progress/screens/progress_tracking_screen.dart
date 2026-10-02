@@ -163,7 +163,11 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                     gender: updatedUser.gender,
                   );
                   final tdee = BmiCalculator.calculateTdee(bmr: bmr, activityLevel: updatedUser.activityLevel);
-                  final tCal = BmiCalculator.calculateTargetCalories(tdee: tdee, fitnessGoal: updatedUser.fitnessGoal);
+                  final tCal = BmiCalculator.calculateTargetCalories(
+                    tdee: tdee,
+                    fitnessGoal: updatedUser.fitnessGoal,
+                    bmi: updatedUser.bmi,
+                  );
                   final macros = BmiCalculator.calculateTargetMacros(targetCalories: tCal, fitnessGoal: updatedUser.fitnessGoal);
 
                   await ref.read(mealNotifierProvider.notifier).generateMealPlan(
@@ -177,7 +181,7 @@ class _ProgressTrackingScreenState extends ConsumerState<ProgressTrackingScreen>
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Weight logged: ${w}kg! Workout targets & meal calories updated to ${tCal.toInt()} kcal!'),
+                        content: Text('Improvement logged: ${w}kg! Calories auto-updated to ${tCal.toInt()} kcal based on BMI (${updatedUser.bmi}) and ${updatedUser.fitnessGoal}!'),
                         backgroundColor: AppColors.primary,
                       ),
                     );
